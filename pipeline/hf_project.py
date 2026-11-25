@@ -183,8 +183,7 @@ SCENE_CSS = """
   .cw-stars { display:flex; align-items:center; gap:9px; font:800 28px 'Inter'; color:#0e1220; }
   .cw-langrow { display:flex; align-items:center; gap:10px; font:600 26px 'Inter'; color:#3d4356; }
   .cw-dotb { width:22px; height:22px; border-radius:50%; }
-  .hf-term .cw-body { background:#101423; padding:0; border-radius:0 0 26px 26px; }
-  .cw-tbody { padding:28px 30px; }
+  .hf-term .cw-tbody { background:#101423; padding:28px 30px; border-radius:0 0 26px 26px; }
   .cw-tline { font:500 29px/1.65 'JetBrains Mono',monospace; color:#d7e4ff; }
   .cw-prompt { color:#5df0a6; margin-right:14px; }
   .cw-stats { background:#ffffff; border-radius:26px; padding:52px 36px; text-align:center; }
@@ -246,7 +245,7 @@ def _scene_html(idx: int, scene: dict, tl_data: dict, lead: float) -> str:
             word_pops.append((f"#{uid}-w{len(word_pops)}", round(w["t0"] + lead, 3)))
         phrases_html.append(
             f'<div id="{uid}-p{pi}" class="clip phrase" data-start="{pstart:.3f}" '
-            f'data-duration="{pdur:.3f}">{"".join(spans)}</div>')
+            f'data-duration="{pdur:.3f}">{" ".join(spans)}</div>')
 
     # mouth cues: baseline (closed X) at position 0, then step tweens per cue
     cues = scene.get("cues") or [{"t0": 0, "t1": duration, "shape": "X"}]
