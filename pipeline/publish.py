@@ -106,7 +106,7 @@ def fb_configured() -> bool:
     return bool(env("FB_PAGE_ID") and env("FB_PAGE_ACCESS_TOKEN"))
 
 
-def fb_post(video: Path, caption: str) -> str:
+def fb_post(video: Path, caption: str) -> dict:
     base = f"https://graph.facebook.com/{env('GRAPH_VERSION') or GRAPH_VERSION}"
     page_id, token = env("FB_PAGE_ID"), env("FB_PAGE_ACCESS_TOKEN")
 
@@ -141,7 +141,7 @@ def fb_post(video: Path, caption: str) -> str:
     })
     if r.status_code >= 400:
         raise PublishError(f"fb reels finish: HTTP {r.status_code}: {snippet(r)}")
-    return f"https://www.facebook.com/reel/{video_id}"
+    return {"url": f"https://www.facebook.com/reel/{video_id}", "post_id": video_id}
 
 
 # ---- instagram (container -> publish; needs a publicly reachable video_url) --
@@ -212,7 +212,7 @@ def _public_video_url(video: Path) -> str:
     return video_url
 
 
-def ig_post(video: Path, caption: str) -> str:
+def ig_post(video: Path, caption: str) -> dict:
     base = f"https://graph.facebook.com/{env('GRAPH_VERSION') or GRAPH_VERSION}"
     user_id, token = env("IG_USER_ID"), env("IG_ACCESS_TOKEN")
     video_url = _public_video_url(video)
@@ -258,10 +258,11 @@ def ig_post(video: Path, caption: str) -> str:
     if r.status_code < 400:
         data = r.json() or {}
         if data.get("permalink"):
-            return str(data["permalink"])
+            return {"url": str(data["permalink"]), "post_id": media_id}
         if data.get("shortcode"):
-            return f"https://www.instagram.com/reel/{data['shortcode']}/"
-    return f"https://www.instagram.com/reel/{media_id}/"
+            return {"url": f"https://www.instagram.com/reel/{data['shortcode']}/",
+                    "post_id": media_id}
+    return {"url": f"https://www.instagram.com/reel/{media_id}/", "post_id": media_id}
 
 
 # ---- state + main ------------------------------------------------------------
@@ -318,9 +319,15 @@ def main() -> int:
                 print("[publish] facebook: skipped (FB_PAGE_ID / FB_PAGE_ACCESS_TOKEN not set)")
                 continue
             try:
-                url = fb_post(video, caption)
-                record(video, "facebook", url)
-                print(f"[publish] facebook OK -> {url}")
+                res = fb_post(video, caption)
+                record(video, "facebook", res["url"])
+                # registry for the comment-gate auto-DM (keyword + promised links)
+                try:
+                    import comment_bot
+                    comment_bot.record_post("facebook", res["post_id"], res["url"], video.name)
+                except Exception as exc:  # registry must never break publishing
+                    print(f"[publish] registry write skipped: {exc}")
+                print(f"[publish] facebook OK -> {res['url']}")
             except PublishError as exc:
                 failures += 1
                 print(f"[publish] facebook FAILED: {exc}")
@@ -329,9 +336,14 @@ def main() -> int:
                 print("[publish] instagram: skipped (IG_ACCESS_TOKEN / IG_USER_ID / IG_PUBLIC_URL_BASE not set)")
                 continue
             try:
-                url = ig_post(video, caption)
-                record(video, "instagram", url)
-                print(f"[publish] instagram OK -> {url}")
+                res = ig_post(video, caption)
+                record(video, "instagram", res["url"])
+                try:
+                    import comment_bot
+                    comment_bot.record_post("instagram", res["post_id"], res["url"], video.name)
+                except Exception as exc:
+                    print(f"[publish] registry write skipped: {exc}")
+                print(f"[publish] instagram OK -> {res['url']}")
             except PublishError as exc:
                 failures += 1
                 print(f"[publish] instagram FAILED: {exc}")

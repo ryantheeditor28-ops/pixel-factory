@@ -1,6 +1,7 @@
 {
   "voice": "en-US-AndrewMultilingualNeural",
-  "rate": "+4%",
+  "rate": "+14%",
+  "pitch": "-8Hz",
   "language": "en-US",
   "niche": "trending AI tools, open-source GitHub repos and indie hacking",
   "fps": 30,
@@ -14,5 +15,11 @@
   "accent_color": "#2f6bff",
   "accent_color_hot": "#ff5a2f",
   "listicle_every": 2,
+  "comment_dm": {
+    "keywords": ["REPO"],
+    "max_age_days": 7,
+    "comment_limit": 50,
+    "max_attempts": 3
+  },
   "upload": { "releases": true, "commit_state": true }
 }
