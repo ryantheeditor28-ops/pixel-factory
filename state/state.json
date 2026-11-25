@@ -5,7 +5,8 @@
     "daily-drops",
     "crhywun/g1-acq",
     "xcl-dev/xcl",
-    "kai415-debug/ffmpeg-video-audio-converter"
+    "kai415-debug/ffmpeg-video-audio-converter",
+    "leanprover-community/riemann-hypothesis"
   ],
   "videos": [
     {
@@ -43,6 +44,12 @@
       "topic": "kai415-debug/ffmpeg-video-audio-converter",
       "source": "llm",
       "title": "Free FFmpeg GUI"
+    },
+    {
+      "stamp": "20261125-1911",
+      "topic": "leanprover-community/riemann-hypothesis",
+      "source": "llm",
+      "title": "Riemann Code"
     }
   ]
 }
