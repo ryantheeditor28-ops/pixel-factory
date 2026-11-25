@@ -12,8 +12,10 @@ Layout (1080x1920) follows the vertical safe-zone spec: brand logo 52-156px,
 kicker 190px, title from 285px, card from 700px, captions 1136-1278px, character
 below 1276px. Scene 1 shows the title/kicker/guy on FRAME 0 (the thumbnail);
 scenes tile the full timeline with no blank gaps; the mouth is a stack of
-per-sound PNGs swapped on rhubarb cues (image mouths, template-style). Every
-element pops with springy back.out easing, "demo" cards play the
+per-sound PNGs swapped on rhubarb cues (image mouths, template-style). Entrances
+follow the reference-measured motion language (family-2 stack promo, frame-tracked:
+wind-up drift -> fast snap -> soft settle, alternating horizontal deal-in, no
+overshoot on big panels), small accents still spring with back.out, "demo" cards play the
 Claude-Code-building-a-video scene, and ALL shot timing + sound cues come from
 pipeline/shot_plan.py (video-shotcraft methodology: accelerating stagger, holds,
 real-material foley — no game timbres).
@@ -362,6 +364,47 @@ LISTICLE_CSS = """
 """
 
 
+def _ref_entrance_tl(sel: str, start: float, xd: float = 0.0, dy: float = 110,
+                     visible_from: bool = False, small: bool = False) -> list[str]:
+    """Reference-measured entrance, as GSAP-core keyframes (no plugin).
+
+    Frame-tracking the family-2 stack promo gave a three-phase curve for every
+    panel entrance: a slow wind-up that drifts PAST the start (~0.15-0.3s, often
+    partially transparent), a fast snap that lands ~70% of the travel in
+    ~0.10-0.2s, and a soft decelerating settle (~0.2-0.3s) with NO overshoot on
+    big elements; panels deal in with alternating horizontal drift. Small
+    sub-elements (rows/chips) keep a tighter version. visible_from=True keeps
+    frame 0 on screen (scene-1 thumbnail rule) by starting visible but off-pose.
+    """
+    if small:
+        init = (f'  tl.set("{sel}",{{opacity:0,y:{dy},x:{xd:.0f}}},{start:.2f});')
+        return [init,
+                f'  tl.to("{sel}",{{keyframes:['
+                f'{{y:{dy + 8},opacity:0.45,duration:0.10,ease:"sine.inOut"}},'
+                f'{{y:-2,x:0,opacity:1,duration:0.14,ease:"power3.out"}},'
+                f'{{y:1,duration:0.09,ease:"power2.out"}},'
+                f'{{y:0,duration:0.12,ease:"sine.out"}}'
+                f']}},{start:.2f});']
+    if visible_from:
+        init = (f'  tl.set("{sel}",{{y:{dy * 0.22:.0f},scale:0.97,x:{xd:.0f}}},{start:.2f});')
+        return [init,
+                f'  tl.to("{sel}",{{keyframes:['
+                f'{{y:{dy * 0.30:.0f},duration:0.11,ease:"sine.inOut"}},'
+                f'{{y:-2,scale:1.004,x:0,duration:0.16,ease:"power3.out"}},'
+                f'{{y:1,duration:0.11,ease:"power2.out"}},'
+                f'{{y:0,scale:1,duration:0.14,ease:"sine.out"}}'
+                f']}},{start:.2f});']
+    init = (f'  tl.set("{sel}",{{opacity:0,y:{dy:.0f},x:{xd:.0f},scale:0.94}},'
+            f'{start:.2f});')
+    return [init,
+            f'  tl.to("{sel}",{{keyframes:['
+            f'{{y:{dy + 12:.0f},opacity:0.4,duration:0.14,ease:"sine.inOut"}},'
+            f'{{y:-3,x:0,scale:1.004,opacity:1,duration:0.19,ease:"power3.out"}},'
+            f'{{y:1,duration:0.12,ease:"power2.out"}},'
+            f'{{y:0,scale:1,duration:0.16,ease:"sine.out"}}'
+            f']}},{start:.2f});']
+
+
 def _scene_html(idx: int, scene: dict, tl_data: dict, lead: float) -> str:
     uid = f"sn{idx:02d}"
     accent = tl_data["accent_color"]
@@ -424,12 +467,12 @@ def _scene_html(idx: int, scene: dict, tl_data: dict, lead: float) -> str:
             f'{{scale:1,opacity:1,duration:0.34,ease:"back.out(2.2)",immediateRender:false}},'
             f'{card_start + 1.00:.2f});')
     if is_listicle and kind == "tool":
+        # measured sub-row cadence: near-uniform ~0.18s beats (the reference's
+        # stagger barely accelerates), each row wind-up -> snap -> settle
         t = card_start + 0.45
         for j in range(3):
-            listicle_tl.append(
-                f'  tl.fromTo("#{uid}-mock{j}",{{y:22,opacity:0}},'
-                f'{{y:0,opacity:1,duration:0.26,ease:"back.out(1.7)",immediateRender:false}},{t:.2f});')
-            t += 0.16 * (0.80 ** j)
+            listicle_tl.extend(_ref_entrance_tl(f"#{uid}-mock{j}", t, dy=30, small=True))
+            t += 0.18 * (0.92 ** j)
         listicle_tl.append(
             f'  tl.fromTo("#{uid}-osschip",{{scale:0.6,opacity:0}},'
             f'{{scale:1,opacity:1,duration:0.30,ease:"back.out(2.2)",immediateRender:false}},'
@@ -517,22 +560,32 @@ def _scene_html(idx: int, scene: dict, tl_data: dict, lead: float) -> str:
 
     # frame-0 (thumbnail) rule: scene 1 shows everything immediately — no opacity entrances.
     # Entrance + bob target the -body wrapper so the mouth rides along with the body.
+    xd = 72 if idx % 2 == 0 else -72  # measured: panels deal in from alternating sides
     if is_first:
-        guy_tl = [
-            f'  tl.fromTo("#{uid}-body",{{scale:0.94,y:12}},{{scale:1,y:0,duration:0.30,ease:"back.out(1.6)"}},0);',
-            f'  tl.fromTo("#{uid}-body",{{y:0}},{{y:-12,duration:0.34,yoyo:true,repeat:{bob_repeat},ease:"sine.inOut",immediateRender:false}},{lead + 0.40:.2f});',
+        guy_tl = _ref_entrance_tl(f"#{uid}-body", 0.0, 0, dy=52, visible_from=True) + [
+            f'  tl.fromTo("#{uid}-body",{{y:0}},{{y:-12,duration:0.34,yoyo:true,repeat:{bob_repeat},ease:"sine.inOut",immediateRender:false}},{lead + 0.62:.2f});',
         ]
-        title_tl = [f'  tl.fromTo("#{uid}-title",{{y:26,scale:0.96}},{{y:0,scale:1,duration:0.34,ease:"back.out(1.4)",immediateRender:false}},0.01);']
+        title_tl = _ref_entrance_tl(f"#{uid}-title", 0.01, xd * 0.5, dy=44, visible_from=True)
         kicker_tl = []
     else:
-        guy_tl = [
-            f'  tl.fromTo("#{uid}-body",{{scale:0.88,y:18,opacity:0}},{{scale:1,y:0,opacity:1,duration:0.34,ease:"back.out(1.5)"}},0.05);',
-            f'  tl.fromTo("#{uid}-body",{{y:0}},{{y:-12,duration:0.34,yoyo:true,repeat:{bob_repeat},ease:"sine.inOut",immediateRender:false}},{lead + 0.40:.2f});',
+        guy_tl = _ref_entrance_tl(f"#{uid}-body", 0.05, 0, dy=56) + [
+            f'  tl.fromTo("#{uid}-body",{{y:0}},{{y:-12,duration:0.34,yoyo:true,repeat:{bob_repeat},ease:"sine.inOut",immediateRender:false}},{lead + 0.70:.2f});',
         ]
-        title_tl = [f'  tl.fromTo("#{uid}-title",{{opacity:0,y:36,scale:0.94}},{{opacity:1,y:0,scale:1,duration:0.38,ease:"back.out(1.5)"}},0.04);']
+        title_tl = _ref_entrance_tl(f"#{uid}-title", 0.04, xd * 0.5, dy=48)
         kicker_tl = [f'  tl.fromTo("#{uid}-kicker",{{opacity:0,y:-14}},{{opacity:1,y:0,duration:0.30,ease:"back.out(1.7)"}},0.10);']
-    card_tl = ([f'  tl.fromTo("#{uid}-card",{{opacity:0,y:60,scale:0.94}},{{opacity:1,y:0,scale:1,duration:0.40,ease:"back.out(1.4)",immediateRender:false}},{card_start:.2f});']
-               if card_html else [])
+    card_tl = (_ref_entrance_tl(f"#{uid}-card", card_start, xd, dy=110,
+                                visible_from=is_first) if card_html else [])
+
+    # measured transition beat: outgoing elements leave with a quick power-in
+    # drift (the reference's pre-entrance phase) while the next scene assembles
+    exit_tl: list[str] = []
+    if idx < len(tl_data["scenes"]):
+        t_out = max(duration - 0.17, card_start + 0.80)
+        exit_tl = [
+            f'  tl.to("#{uid}-card",{{y:-26,x:{-xd * 0.4:.0f},opacity:0,duration:0.16,ease:"power2.in",immediateRender:false}},{t_out:.2f});',
+            f'  tl.to("#{uid}-title",{{y:-18,opacity:0,duration:0.15,ease:"power2.in",immediateRender:false}},{t_out:.2f});',
+            f'  tl.to("#{uid}-body",{{y:-20,opacity:0,duration:0.16,ease:"power2.in",immediateRender:false}},{t_out:.2f});',
+        ]
 
     # demo card: typed command -> filling progress bar -> staggered timeline blocks
     # (all offsets come from shot_plan so the keystroke foley lands exactly on each
@@ -554,9 +607,8 @@ def _scene_html(idx: int, scene: dict, tl_data: dict, lead: float) -> str:
     if scene.get("card", {}).get("kind") == "list":
         t = card_start + 0.30
         for j in range(3):
-            list_tl.append(f'  tl.fromTo("#{uid}-item{j}",{{y:30,scale:0.92,opacity:0}},'
-                           f'{{y:0,scale:1,opacity:1,duration:0.30,ease:"back.out(1.6)",immediateRender:false}},{t:.2f});')
-            t += 0.20 * (0.80 ** j)
+            list_tl.extend(_ref_entrance_tl(f"#{uid}-item{j}", t, dy=34, small=True))
+            t += 0.22 * (0.92 ** j)
 
     html = f'''<template>
 <style>{SCENE_CSS.replace("__UID__", uid).replace("__ACCENT__", accent)}{LISTICLE_CSS.replace("__UID__", uid).replace("__ACCENT__", accent) if is_listicle else ""}</style>
@@ -582,7 +634,7 @@ def _scene_html(idx: int, scene: dict, tl_data: dict, lead: float) -> str:
 </div>
 <script>
   const tl = gsap.timeline({{ paused: true }});
-{chr(10).join(title_tl + kicker_tl + card_tl + guy_tl + demo_tl + list_tl + listicle_tl + dots_tl + gesture_tl)}
+{chr(10).join(title_tl + kicker_tl + card_tl + guy_tl + demo_tl + list_tl + listicle_tl + dots_tl + gesture_tl + exit_tl)}
   tl.fromTo("#{uid}-blob1", {{ x: 0, y: 0 }}, {{ x: 60, y: -50, duration: 4, yoyo: true, repeat: 99, ease: "sine.inOut", immediateRender: false }}, 0);
   tl.fromTo("#{uid}-blob2", {{ x: 0, y: 0 }}, {{ x: -50, y: 60, duration: 5, yoyo: true, repeat: 79, ease: "sine.inOut", immediateRender: false }}, 0);
 {chr(10).join(mouth_tl)}
