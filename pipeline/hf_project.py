@@ -196,6 +196,45 @@ def _card_html(card: dict, uid: str) -> str:
     <div class="cw-tlbody">{blocks}</div>
   </div>
 </div>'''
+    if kind == "price":
+        # listicle hook (Marktalksai shape C): struck-through monthly price -> $0 pill
+        price = _esc(card.get("price", "$147"))
+        zero = _esc(card.get("zero", "$0"))
+        label = _esc(card.get("label", "PER MONTH"))
+        return f'''<div id="{uid}-card" class="clip hf-card" data-start="__CARDSTART__" data-duration="__CDUR__">
+  <div class="cw-price">
+    <div class="cw-pricewrap"><span class="cw-pricebig">{price}</span><span id="{uid}-strike" class="cw-strike"></span></div>
+    <div class="cw-pricelabel">{label}</div>
+    <div id="{uid}-zero" class="cw-pricezero">{zero}</div>
+  </div>
+</div>'''
+    if kind == "tool":
+        # listicle body: numbered open-source tool card — number + app tile + name,
+        # skeleton-UI mockup rows, "Open source" chip + stars (the winner reel's card system)
+        n = int(card.get("n", 1))
+        name = _esc(card.get("name", "owner/repo"))
+        stars = _esc(card.get("stars", ""))
+        desc = _esc(card.get("desc", ""))
+        short = name.split("/")[-1] if "/" in str(card.get("name", "")) else str(card.get("name", ""))
+        tile = _esc((short[:1] or "R").upper())
+        rows = "".join(
+            f'<div id="{uid}-mock{j}" class="cw-skrow" style="width:{w}%"></div>'
+            for j, w in enumerate((78, 56, 66)))
+        return f'''<div id="{uid}-card" class="clip hf-card" data-start="__CARDSTART__" data-duration="__CDUR__">
+  <div class="cw-toolhead"><span class="cw-toolnum">#{n}</span><span class="cw-tooltile">{tile}</span>
+    <div class="cw-toolmeta"><div class="cw-toolname">{short}</div><div class="cw-tooldesc">{desc}</div></div></div>
+  <div class="cw-toolmock">{rows}</div>
+  <div class="cw-toolfoot"><span id="{uid}-osschip" class="cw-osschip">✓ Open source</span>
+    <span class="cw-toolstars">{STAR_SVG}<span>{stars}</span></span></div>
+</div>'''
+    if kind == "comment":
+        # listicle CTA: the winner's comment-input mockup with the keyword gate
+        kw = _esc(card.get("keyword", "REPO"))
+        return f'''<div id="{uid}-card" class="clip hf-card" data-start="__CARDSTART__" data-duration="__CDUR__">
+  <div class="cw-comment"><span class="cw-cavatar">T</span>
+    <span class="cw-cinput">Comment &quot;{kw}&quot;</span>
+    <span id="{uid}-send" class="cw-csend">➤</span></div>
+</div>'''
     return ""  # plain: replaced by the word chip in _scene_html
 
 
@@ -271,6 +310,55 @@ SCENE_CSS = """
     box-shadow:0 26px 60px rgba(8,12,26,.16); }
   .cw-tlbody { display:flex; gap:12px; padding:24px 22px; height:96px; align-items:stretch; }
   .cw-tlblock { border-radius:12px; }
+  .cw-price { background:#ffffff; border-radius:26px; padding:56px 36px 48px; text-align:center;
+    box-shadow:0 26px 60px rgba(8,12,26,.16); }
+  .cw-pricewrap { position:relative; display:inline-block; }
+  .cw-pricebig { font-family:'Archivo Black',sans-serif; font-size:150px; line-height:1; color:#0e1220; }
+  .cw-strike { position:absolute; left:-6%; right:-6%; top:50%; height:16px; margin-top:-8px;
+    background:__ACCENT__; border-radius:8px; }
+  .cw-pricelabel { margin-top:24px; font:800 26px 'Inter'; letter-spacing:5px; color:#3d4356; }
+  .cw-pricezero { display:inline-block; margin-top:28px; padding:20px 56px; border-radius:999px;
+    background:__ACCENT__; color:#fff; font-family:'Archivo Black',sans-serif; font-size:96px;
+    line-height:1; opacity:0; }
+  .cw-toolhead { display:flex; align-items:flex-start; gap:22px; padding:34px 34px 24px;
+    background:#ffffff; border-radius:26px 26px 0 0; }
+  .cw-toolnum { font-family:'Archivo Black',sans-serif; font-size:46px; line-height:1;
+    color:__ACCENT__; margin-top:24px; }
+  .cw-tooltile { display:flex; align-items:center; justify-content:center; width:92px; height:92px;
+    border-radius:24px; background:__ACCENT__; color:#fff; font:900 46px 'Inter'; flex:0 0 92px; }
+  .cw-toolmeta { min-width:0; }
+  .cw-toolname { font:800 38px/1.1 'Inter'; color:#0e1220; word-break:break-word; }
+  .cw-tooldesc { margin-top:10px; font:500 27px/1.3 'Inter'; color:#3d4356; }
+  .cw-toolmock { background:#ffffff; padding:4px 34px 0; }
+  .cw-skrow { height:20px; border-radius:10px; background:#eef0f6; margin-bottom:14px; opacity:0; }
+  .cw-toolfoot { display:flex; align-items:center; gap:18px; padding:8px 34px 34px;
+    background:#ffffff; border-radius:0 0 26px 26px; }
+  .cw-osschip { display:inline-flex; align-items:center; gap:10px; padding:14px 26px;
+    border-radius:999px; background:#e7f7ec; color:#1f9d55; font:800 26px 'Inter'; opacity:0; }
+  .cw-toolstars { display:flex; align-items:center; gap:9px; font:800 28px 'Inter'; color:#0e1220; }
+  .cw-comment { display:flex; align-items:center; gap:20px; background:#ffffff;
+    border-radius:999px; padding:26px 30px; box-shadow:0 26px 60px rgba(8,12,26,.16); }
+  .cw-cavatar { display:flex; align-items:center; justify-content:center; width:74px; height:74px;
+    border-radius:50%; background:#101423; color:#fff; font:900 32px 'Inter'; flex:0 0 74px; }
+  .cw-cinput { flex:1; text-align:left; font:700 34px 'Inter'; color:#10131a;
+    white-space:nowrap; overflow:hidden; }
+  .cw-csend { display:flex; align-items:center; justify-content:center; width:78px; height:78px;
+    border-radius:50%; background:__ACCENT__; color:#fff; font-size:36px; flex:0 0 78px; }
+"""
+
+# listicle format overrides (Marktalksai shape C): warm cream sketchbook background,
+# italic-serif accent word (Playfair Display is bundled), progress-dots header
+LISTICLE_CSS = """
+  #root { background:linear-gradient(180deg,#f9f4ea 0%,#f3ecdd 55%,#ece3d0 100%); }
+  #__UID__-kicker { top:206px; }
+  #__UID__-title { top:300px; }
+  #__UID__-title .acc { font-family:'Playfair Display',serif; font-style:italic;
+    text-transform:none; letter-spacing:0; }
+  #__UID__-dots { position:absolute; top:166px; left:0; right:0; display:flex;
+    justify-content:center; align-items:center; gap:14px; }
+  .cw-pdot { width:14px; height:14px; border-radius:50%; background:rgba(46,36,18,.16); }
+  .cw-pdot.on { background:__ACCENT__; }
+  .cw-pdot.cur { width:18px; height:18px; margin-top:-2px; }
 """
 
 
@@ -296,6 +384,57 @@ def _scene_html(idx: int, scene: dict, tl_data: dict, lead: float) -> str:
                      f'</div>')
     card_html = (card_html.replace("__CARDSTART__", f"{card_start:.2f}")
                           .replace("__CDUR__", f"{card_dur:.2f}"))
+
+    # listicle format (Marktalksai shape C): progress-dots header tracking the
+    # scene position — the winner reels' retention device. Static per scene,
+    # current dot pops in when the scene starts.
+    is_listicle = tl_data.get("format") == "listicle"
+    dots_html = ""
+    dots_tl: list[str] = []
+    if is_listicle:
+        n_total = len(tl_data["scenes"])
+        spans = "".join(
+            f'<span class="cw-pdot{" on" if i < idx else ""}{" cur" if i == idx - 1 else ""}"></span>'
+            for i in range(n_total))
+        dots_html = (f'  <div id="{uid}-dots" class="clip cw-dots" data-start="{t0}" '
+                     f'data-duration="__KDUR__" data-layout-allow-overlap>{spans}</div>')
+        dots_tl.append(f'  tl.fromTo("#{uid}-dots .cw-pdot.cur",{{scale:0.5}},'
+                       f'{{scale:1,duration:0.30,ease:"back.out(2.2)",immediateRender:false}},0.12);')
+
+    # listicle card choreography (R2: accelerating deal-in, then stillness):
+    # price hook -> strike draws -> $0 pill pops; tool -> skeleton rows deal in
+    # -> chip pops; comment CTA -> send button pulses on the finale impact.
+    kind = (scene.get("card") or {}).get("kind", "plain")
+    listicle_tl: list[str] = []
+    if is_listicle and kind == "price":
+        # strike: from-state applied at registration (no CSS pre-hide), so the
+        # bar is invisible until it draws across the price
+        listicle_tl.append(
+            f'  tl.fromTo("#{uid}-strike",{{scaleX:0,rotate:-6}},'
+            f'{{scaleX:1,rotate:-6,duration:0.35,ease:"power2.inOut",immediateRender:true}},'
+            f'{card_start + 0.55:.2f});')
+        listicle_tl.append(
+            f'  tl.fromTo("#{uid}-zero",{{scale:0.5,opacity:0}},'
+            f'{{scale:1,opacity:1,duration:0.34,ease:"back.out(2.2)",immediateRender:false}},'
+            f'{card_start + 1.00:.2f});')
+    if is_listicle and kind == "tool":
+        t = card_start + 0.45
+        for j in range(3):
+            listicle_tl.append(
+                f'  tl.fromTo("#{uid}-mock{j}",{{y:22,opacity:0}},'
+                f'{{y:0,opacity:1,duration:0.26,ease:"back.out(1.7)",immediateRender:false}},{t:.2f});')
+            t += 0.16 * (0.80 ** j)
+        listicle_tl.append(
+            f'  tl.fromTo("#{uid}-osschip",{{scale:0.6,opacity:0}},'
+            f'{{scale:1,opacity:1,duration:0.30,ease:"back.out(2.2)",immediateRender:false}},'
+            f'{t + 0.05:.2f});')
+    if is_listicle and kind == "comment":
+        # pulse the send button exactly when the shot plan's finale impact lands
+        t_hit = max(duration - 0.50, card_start + 0.30)
+        listicle_tl.append(
+            f'  tl.fromTo("#{uid}-send",{{scale:1}},'
+            f'{{scale:1.22,duration:0.10,yoyo:true,repeat:1,ease:"power2.out",immediateRender:false}},'
+            f'{t_hit:.2f});')
 
     # captions — two-line style per phrase: line 1 = the hook words (accent blue),
     # line 2 = the supporting words (black) below. Each group rises in with an ease
@@ -414,12 +553,13 @@ def _scene_html(idx: int, scene: dict, tl_data: dict, lead: float) -> str:
             t += 0.20 * (0.80 ** j)
 
     html = f'''<template>
-<style>{SCENE_CSS.replace("__UID__", uid).replace("__ACCENT__", accent)}</style>
+<style>{SCENE_CSS.replace("__UID__", uid).replace("__ACCENT__", accent)}{LISTICLE_CSS.replace("__UID__", uid).replace("__ACCENT__", accent) if is_listicle else ""}</style>
 <div id="root" data-composition-id="{uid}" data-width="1080" data-height="1920">
   <div id="{uid}-blob1" class="blob" data-layout-ignore
        style="width:560px;height:560px;left:-140px;top:380px;background:rgba(47,107,255,.16);"></div>
   <div id="{uid}-blob2" class="blob" data-layout-ignore
        style="width:480px;height:480px;right:-120px;top:920px;background:rgba(255,90,47,.12);"></div>
+{dots_html}
   <div id="{uid}-kicker" class="clip" data-start="{t0}" data-duration="__KDUR__"
        data-var-text="kicker">{_esc(tl_data["kicker"])}</div>
   <div id="{uid}-title" class="clip" data-start="{t0}" data-duration="__TDUR__">
@@ -436,7 +576,7 @@ def _scene_html(idx: int, scene: dict, tl_data: dict, lead: float) -> str:
 </div>
 <script>
   const tl = gsap.timeline({{ paused: true }});
-{chr(10).join(title_tl + kicker_tl + card_tl + guy_tl + demo_tl + list_tl + gesture_tl)}
+{chr(10).join(title_tl + kicker_tl + card_tl + guy_tl + demo_tl + list_tl + listicle_tl + dots_tl + gesture_tl)}
   tl.fromTo("#{uid}-blob1", {{ x: 0, y: 0 }}, {{ x: 60, y: -50, duration: 4, yoyo: true, repeat: 99, ease: "sine.inOut", immediateRender: false }}, 0);
   tl.fromTo("#{uid}-blob2", {{ x: 0, y: 0 }}, {{ x: -50, y: 60, duration: 5, yoyo: true, repeat: 79, ease: "sine.inOut", immediateRender: false }}, 0);
 {chr(10).join(mouth_tl)}
@@ -526,11 +666,24 @@ def generate(timeline: dict, build_dir: Path) -> Path:
 
     tl_data = dict(timeline)
     # per-scene title lines: scene 1 carries the big video title; later scenes use
-    # a short punch derived from their highlight/text start.
+    # a short punch derived from their highlight/text start. Listicle scenes punch
+    # the claim ("NUMBER 2" / "COMMENT REPO") like the winner reel — the tool name
+    # already lives big inside the card, and repo names would truncate mid-word.
     titles = [tl_data["title"]]
     for sc in tl_data["scenes"][1:]:
-        words = " ".join(w["text"] for w in sc.get("words", [])[:4])
-        punch = (sc.get("highlight") or words).upper()
+        card = sc.get("card") or {}
+        kind = card.get("kind")
+        if kind == "tool":
+            punch = f"NUMBER {card.get('n', '')}"
+            if not (sc.get("highlight") or "").strip():
+                sc["highlight"] = f"number {card.get('n', '')}"
+        elif kind == "comment":
+            punch = f"COMMENT {tl_data['comment_keyword']}"
+            if not (sc.get("highlight") or "").strip():
+                sc["highlight"] = tl_data["comment_keyword"]
+        else:
+            words = " ".join(w["text"] for w in sc.get("words", [])[:4])
+            punch = (sc.get("highlight") or words).upper()
         titles.append(punch[:26])
     tl_data["_titles"] = titles
 

@@ -10,8 +10,9 @@
   "max_duration_sec": 58,
   "segment_gap_sec": 0.35,
   "outro_sec": 0.9,
-  "comment_keywords": ["DECODE", "REBUILD", "PIXEL", "SHIP", "WRANGLE", "CLONE"],
+  "comment_keywords": ["DECODE", "REBUILD", "PIXEL", "SHIP", "WRANGLE", "CLONE", "REPO"],
   "accent_color": "#2f6bff",
   "accent_color_hot": "#ff5a2f",
+  "listicle_every": 2,
   "upload": { "releases": true, "commit_state": true }
 }

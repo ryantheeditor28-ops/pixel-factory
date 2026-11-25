@@ -135,6 +135,7 @@ def build(script: dict, segments: list[dict], cfg: dict, build_dir: Path) -> dic
         "kicker": script["kicker"],
         "comment_keyword": script["comment_keyword"],
         "accent_color": script.get("accent_color", "#2f6bff"),
+        "format": script.get("format", "single"),
         "topic_id": script["topic_id"],
         "voice_src": "assets/voice/voice.mp3",
         "scenes": out_scenes,

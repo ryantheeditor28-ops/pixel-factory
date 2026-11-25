@@ -88,11 +88,14 @@ def update_state(script: dict) -> dict:
     state_path = state_dir / "state.json"
     state = load_json(state_path) if state_path.exists() else {"used_topics": [], "videos": []}
     tid = script.get("topic_id")
-    if tid and tid not in state["used_topics"]:
-        state["used_topics"].append(tid)
+    # listicles consume several repos — mark them all used so nothing repeats
+    for t in ([tid] if tid else []) + list(script.get("topic_ids", [])):
+        if t and t not in state["used_topics"]:
+            state["used_topics"].append(t)
     state["used_topics"] = state["used_topics"][-500:]
     stamp = dt.datetime.now().strftime("%Y%m%d-%H%M")
     state["videos"].append({"stamp": stamp, "topic": tid, "source": script.get("source"),
+                            "format": script.get("format", "single"),
                             "title": script.get("title")})
     state["videos"] = state["videos"][-500:]
     dump_json(state_path, state)

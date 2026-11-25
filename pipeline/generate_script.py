@@ -66,6 +66,33 @@ def pick_topic(used: set[str]) -> dict | None:
     }
 
 
+def pick_topics(used: set[str], n: int = 3) -> list[dict]:
+    """n fresh trending repos for one listicle video. [] if GitHub is unreachable."""
+    since = (dt.datetime.now(dt.UTC) - dt.timedelta(days=7)).strftime("%Y-%m-%d")
+    url = ("https://api.github.com/search/repositories?q=created:>=" + since +
+           "&sort=stars&order=desc&per_page=40")
+    try:
+        data = _http_json(url)
+        items = data.get("items", [])
+    except Exception:
+        return []
+    fresh = [r for r in items if r.get("full_name") and r["full_name"] not in used
+             and (r.get("stargazers_count") or 0) >= 100
+             and not r.get("fork")]
+    if len(fresh) < n:
+        return []
+    random.shuffle(fresh)
+    return [{
+        "id": r["full_name"],
+        "name": r["full_name"],
+        "desc": (r.get("description") or "").strip(),
+        "stars": r.get("stargazers_count", 0),
+        "lang": r.get("language") or "",
+        "url": r.get("html_url", ""),
+        "topics": r.get("topics") or [],
+    } for r in fresh[:n]]
+
+
 def _fmt_stars(n) -> str:
     try:
         n = int(n)
@@ -128,6 +155,154 @@ def fallback_script(topic: dict | None, keyword: str, cfg: dict) -> dict:
     }
 
 
+def fallback_list_script(topics: list[dict], keyword: str, cfg: dict) -> dict:
+    """Deterministic listicle script (LLM down): hook price card -> N tool cards -> CTA.
+    Shape C from the Marktalksai winner catalogue (16.3K views): struck-price hook,
+    numbered open-source tool cards, Comment REPO gate."""
+    n = len(topics)
+    price = "$" + str(27 * n + 66)  # plausible monthly stack cost, deterministic
+    segments = [{
+        "gesture": "point",
+        "card": {"kind": "price", "price": price, "zero": "$0",
+                 "label": f"PER MONTH FOR {n} TOOLS"},
+        "text": f"These {n} free open-source tools quietly replace {price} a month "
+                f"of software. Number {n} is so new that almost nobody has found it.",
+    }]
+    for i, t in enumerate(topics, start=1):
+        stars = _fmt_stars(t["stars"])
+        tail = {1: "Open source, zero cost, no account.",
+                2: "Also free. It runs entirely on your machine.",
+                3: "And it is 100 percent free forever."}.get(i, "Fully open source.")
+        segments.append({
+            "gesture": ["point", "thumbs", "think"][min(i - 1, 2)],
+            "card": {"kind": "tool", "n": i, "name": t["name"], "stars": stars,
+                     "desc": _trim_words(t["desc"] or "a brand new open-source project", 80),
+                     "lang": t["lang"]},
+            "text": f"Number {i}: {t['name'].split('/')[-1]}. "
+                    f"{_trim_words(t['desc'] or 'A brand new open-source project', 90)}. {tail}",
+        })
+    segments.append({
+        "gesture": "wave",
+        "card": {"kind": "comment", "keyword": keyword},
+        "text": f"Comment {keyword} and I will send you all {n} links. "
+                f"Follow for one hidden gem every single day.",
+    })
+    return {
+        "format": "listicle",
+        "topic_id": "listicle:" + "+".join(t["id"] for t in topics),
+        "topic_ids": [t["id"] for t in topics],
+        "title": f"{n} FREE TOOLS",
+        "kicker": "OPEN SOURCE DROPS",
+        "comment_keyword": keyword,
+        "accent_word": "FREE",
+        "segments": segments,
+        "source": "fallback",
+    }
+
+
+LIST_PROMPT = """You write scripts for a viral faceless tech channel in the exact style of
+the top-performing listicle format: a struck-price hook, then numbered open-source
+tools, then a comment gate.
+
+Write a {target}second vertical video script covering these {n} trending GitHub repositories:
+
+{topic_block}
+
+Rules:
+- Exactly {nseg} segments. Each segment is 1-3 spoken sentences (max ~55 words).
+- Segment 1 is the HOOK: how much per month these free tools replace. "price" = a
+  realistic combined USD monthly cost of the paid equivalents, like "$148".
+- Segments 2..{ntools}: ONE tool each, in order. Card kind "tool" with n={seq} and that
+  repo's fields. Say "Number 1/2/3" out loud. One surprising or concrete detail each.
+- Final segment: CTA with card kind "comment" telling viewers to comment "{keyword}".
+- "highlight" = 1-3 WORDS from that segment's text to accent on screen.
+- "gesture" per segment, one of: point, thumbs, shrug, wave, think.
+- Fill every field a kind needs: price (price+zero+label), tool (n+name+stars+desc+lang),
+  comment (keyword).
+
+Respond with ONLY valid JSON, no markdown:
+{{
+  "title": "MAX 4 WORDS FOR THE TITLE CARD",
+  "kicker": "2-3 WORD CATEGORY LABEL",
+  "segments": [
+    {{"gesture": "...", "highlight": "...",
+      "card": {{"kind": "...", "price": "...", "zero": "$0", "label": "...", "n": 1, "name": "...", "stars": "...", "desc": "...", "lang": "...", "keyword": "..."}} ,
+      "text": "..."}}
+  ]
+}}
+Keep every string in English."""
+
+
+def llm_list_script(topics: list[dict], keyword: str, cfg: dict, seed: int) -> dict | None:
+    n = len(topics)
+    topic_block = "\n\n".join(
+        f"repo {i}: {t['name']}\ndescription: {t['desc'] or 'n/a'}\n"
+        f"stars: {_fmt_stars(t['stars'])}\nlanguage: {t['lang'] or 'n/a'}"
+        for i, t in enumerate(topics, start=1))
+    prompt = LIST_PROMPT.format(target=cfg.get("target_duration_sec", 45), n=n,
+                                nseg=n + 2, ntools=n, seq="{1..%d}" % n,
+                                topic_block=topic_block, keyword=keyword)
+    data = ask_json(prompt, seed=seed)
+    if not isinstance(data, dict):
+        return None
+    segs = data.get("segments")
+    if not isinstance(segs, list) or not (n + 1 <= len(segs) <= n + 3):
+        return None
+    ok_gestures = {"point", "thumbs", "shrug", "wave", "think"}
+    price = _scrub(data.get("price", "") or "") or f"${27 * n + 66}"
+    if not price.startswith("$"):
+        price = "$" + price.lstrip("$")
+    clean = []
+    for i, s in enumerate(segs):
+        if not isinstance(s, dict) or not isinstance(s.get("text"), str) or len(s["text"].strip()) < 10:
+            return None
+        card = s.get("card") if isinstance(s.get("card"), dict) else {"kind": "plain"}
+        kind = card.get("kind")
+        pos = i  # 0=hook, 1..n=tools, last=cta
+        if pos == 0:
+            card = {"kind": "price", "price": _scrub(card.get("price") or price)[:8],
+                    "zero": "$0", "label": _scrub(card.get("label") or f"PER MONTH FOR {n} TOOLS").upper()[:30]}
+        elif 1 <= pos <= n and kind == "tool":
+            t = topics[pos - 1]
+            card["n"] = pos
+            card["name"] = _scrub(card.get("name") or t["name"])
+            card["stars"] = _scrub(card.get("stars") or _fmt_stars(t["stars"]))
+            card["desc"] = _trim_words(card.get("desc") or t["desc"] or "", 90)
+            card["lang"] = _scrub(card.get("lang") or t["lang"] or "")
+        elif pos >= n + 1:
+            card = {"kind": "comment", "keyword": keyword}
+        else:
+            card = {"kind": "tool", "n": pos, "name": topics[pos - 1]["name"],
+                    "stars": _fmt_stars(topics[pos - 1]["stars"]),
+                    "desc": _trim_words(topics[pos - 1]["desc"] or "", 90),
+                    "lang": topics[pos - 1]["lang"] or ""}
+        clean.append({
+            "gesture": s.get("gesture") if s.get("gesture") in ok_gestures else GESTURE_FLOW[i % len(GESTURE_FLOW)],
+            "highlight": _scrub(s.get("highlight") or "")[:40],
+            "card": card,
+            "text": _scrub(s["text"]),
+        })
+    # guarantee the CTA lands as the last segment
+    clean = clean[:n + 2]
+    if clean[-1]["card"].get("kind") != "comment":
+        clean = clean[:n] + [{
+            "gesture": "wave", "highlight": keyword, "card": {"kind": "comment", "keyword": keyword},
+            "text": f"Comment {keyword} and I will send you all {n} links. Follow for one drop every day.",
+        }]
+    title = _scrub(data.get("title", ""))[:30] or f"{n} FREE TOOLS"
+    return {
+        "format": "listicle",
+        "topic_id": "listicle:" + "+".join(t["id"] for t in topics),
+        "topic_ids": [t["id"] for t in topics],
+        "title": title,
+        "kicker": _scrub(data.get("kicker", ""))[:24] or "OPEN SOURCE DROPS",
+        "comment_keyword": keyword,
+        "accent_word": title.split()[0] if title.split() else "",
+        "segments": clean,
+        "source": "llm",
+    }
+
+
 PROMPT = """You write scripts for a viral faceless tech channel in the exact style of
 the top-performing format: a hook in the first sentence, short spoken lines,
 concrete numbers, zero fluff, one comment-bait CTA at the end.
@@ -169,6 +344,12 @@ def _scrub(t) -> str:
     s = str(t).replace("\ufffd", " ").replace("\u2011", "-") \
              .replace("\u2013", "-").replace("\u2014", "-")
     return " ".join(s.split())
+
+
+def _trim_words(s: str, limit: int) -> str:
+    """Scrubbed text cut at a word boundary — never mid-word."""
+    s = _scrub(s)
+    return s if len(s) <= limit else s[:limit].rsplit(" ", 1)[0]
 
 
 def llm_script(topic: dict, keyword: str, cfg: dict, seed: int) -> dict | None:
@@ -245,16 +426,36 @@ def main(build_dir, cfg, state) -> dict:
     global BUILD
     BUILD = build_dir
     used = set(state.get("used_topics", []))
-    topic = pick_topic(used)
     seed = random.randint(1, 10**6)
-    keyword = random.choice(cfg.get("comment_keywords", ["DECODE"]))
-    script = (llm_script(topic, keyword, cfg, seed) if topic else None) \
-        or fallback_script(topic, keyword, cfg)
-    script["accent_color"] = cfg.get("accent_color", "#2f6bff")
+    every = max(int(cfg.get("listicle_every", 2) or 0), 0)
+    videos_made = len(state.get("videos", []))
+    # format rotation: every Nth video is the listicle (Marktalksai shape C —
+    # the 16.3K-view "open-source tools replace paid ones" winner format)
+    mode = "listicle" if every and (videos_made % every) == every - 1 else "single"
+    if mode == "listicle":
+        topics = pick_topics(used, 3)
+        if topics:
+            # the winner reel gates with "Comment REPO" — the keyword matches the format
+            keyword = "REPO" if "REPO" in cfg.get("comment_keywords", []) \
+                else random.choice(cfg.get("comment_keywords", ["DECODE"]))
+            script = (llm_list_script(topics, keyword, cfg, seed)
+                      or fallback_list_script(topics, keyword, cfg))
+        else:
+            topic = pick_topic(used)
+            keyword = random.choice(cfg.get("comment_keywords", ["DECODE"]))
+            script = fallback_script(topic, keyword, cfg)
+            mode = "single"
+    else:
+        topic = pick_topic(used)
+        keyword = random.choice(cfg.get("comment_keywords", ["DECODE"]))
+        script = (llm_script(topic, keyword, cfg, seed) if topic else None) \
+            or fallback_script(topic, keyword, cfg)
+    script["accent_color"] = (cfg.get("accent_color_hot", "#ff5a2f") if mode == "listicle"
+                              else cfg.get("accent_color", "#2f6bff"))
     out = build_dir / "script.json"
     dump_json(out, script)
-    print(f"[script] source={script['source']} topic={script['topic_id']} "
-          f"segments={len(script['segments'])} keyword={keyword}")
+    print(f"[script] source={script['source']} mode={mode} topic={script['topic_id']} "
+          f"segments={len(script['segments'])} keyword={script['comment_keyword']}")
     return script
 
 

@@ -6,7 +6,14 @@
     "crhywun/g1-acq",
     "xcl-dev/xcl",
     "kai415-debug/ffmpeg-video-audio-converter",
-    "leanprover-community/riemann-hypothesis"
+    "listicle:os6/nospeaker+Ahmet-Dedeler/awesome-gta6-reverse-engineering+CocoSgt/riemann-hypothesis-lean",
+    "os6/nospeaker",
+    "Ahmet-Dedeler/awesome-gta6-reverse-engineering",
+    "CocoSgt/riemann-hypothesis-lean",
+    "listicle:erkamyaman/safe-anything+EL4CTEO/fast-anything+INK-Q/agy-fast",
+    "erkamyaman/safe-anything",
+    "EL4CTEO/fast-anything",
+    "INK-Q/agy-fast"
   ],
   "videos": [
     {
@@ -46,10 +53,24 @@
       "title": "Free FFmpeg GUI"
     },
     {
-      "stamp": "20261125-1911",
-      "topic": "leanprover-community/riemann-hypothesis",
+      "stamp": "20261126-0301",
+      "topic": "Marvisak/VIctory",
       "source": "llm",
-      "title": "Riemann Code"
+      "title": "GTA VI On PC"
+    },
+    {
+      "stamp": "20261126-0343",
+      "topic": "listicle:os6/nospeaker+Ahmet-Dedeler/awesome-gta6-reverse-engineering+CocoSgt/riemann-hypothesis-lean",
+      "source": "fallback",
+      "format": "listicle",
+      "title": "3 FREE TOOLS"
+    },
+    {
+      "stamp": "20261126-0348",
+      "topic": "listicle:erkamyaman/safe-anything+EL4CTEO/fast-anything+INK-Q/agy-fast",
+      "source": "fallback",
+      "format": "listicle",
+      "title": "3 FREE TOOLS"
     }
   ]
 }
