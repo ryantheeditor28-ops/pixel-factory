@@ -27,7 +27,8 @@
     "listicle:AFK-surf/xnulinux+Umbra9179/clipboard-history-manager-windows+qianyiai/kurocat",
     "AFK-surf/xnulinux",
     "Umbra9179/clipboard-history-manager-windows",
-    "qianyiai/kurocat"
+    "qianyiai/kurocat",
+    "ubiquitarianism/leonida"
   ],
   "videos": [
     {
@@ -120,6 +121,13 @@
       "source": "llm",
       "format": "listicle",
       "title": "FREE DEV TOOLS"
+    },
+    {
+      "stamp": "20261125-2255",
+      "topic": "ubiquitarianism/leonida",
+      "source": "llm",
+      "format": "single",
+      "title": "PORTS GALORE"
     }
   ]
 }
