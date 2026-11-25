@@ -23,7 +23,7 @@
     "spread": "spread.png",
     "wave": "wave.png"
   },
-  "style": "sketch-v2 (code-drawn, deterministic wobble; family-2 style-match)",
+  "style": "sketch-v3 (code-drawn, deterministic; Marktalksai style-match: orange cap, curls, big ears, cream sweater, chest emblem, striped cuffs, grain)",
   "note": "One sketch guy, drawn in code. Reused in every video. Mouth overlaid at render time.",
   "mouth_shapes": {
     "A": "mouth-A.png",

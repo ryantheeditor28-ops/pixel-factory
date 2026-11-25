@@ -1,11 +1,11 @@
-"""The one-and-only sketch guy (v2 — hand-drawn style, code-drawn).
+"""The one-and-only sketch guy (v3 — Marktalksai-style, code-drawn).
 
 Drawn entirely in code (no AI credits, no licensed assets) so he is free forever,
 identical in every video, and fully automatable. Style-matched to the family-2
-sketch reference (hand-drawn look, big head, gesture vocabulary: point-up, shrug,
-wave, hand-on-chest, thinking, arms-spread) with a CHANGED appearance: no cap
-(the ref's signature — deliberately avoided), messy dark hair instead, and our
-brand-blue hoodie. Kid-safe: open hands everywhere, soft round features.
+reference character: orange baseball cap, curly side hair, big round ears, thick
+brows, cream crew-neck sweater with a red chest emblem and striped cuffs, grainy
+sketch texture. Gestures follow the reference's action vocabulary: point-up,
+hand-on-chest, arms-spread, thinking, shrug, wave, thumbs. Kid-safe open hands.
 
 Produces:
   assets/character/<pose>.png   transparent sprites (idle, point, chest, thumbs,
@@ -25,20 +25,23 @@ import random
 import zlib
 from pathlib import Path
 
+import numpy as np
 from PIL import Image, ImageDraw
 
-W, H = 640, 720  # same 32:36 aspect as the layout container (498x560)
+W, H = 640, 720  # same 32:36 aspect as the layout container (close-up 1120x1260)
 OUT = Path(__file__).resolve().parent.parent / "assets" / "character"
 
 # sketch palette — warm charcoal ink, no pure black
 INK = (58, 46, 42, 255)
-SKIN = (248, 216, 186, 255)
-SKIN_SH = (233, 193, 158, 255)
-HAIR = (70, 48, 38, 255)
-HAIR_HI = (96, 70, 55, 255)
-HOODIE = (47, 107, 255, 255)      # brand blue
-HOODIE_SH = (36, 84, 205, 255)
-STRING = (250, 248, 242, 255)
+SKIN = (250, 227, 202, 255)
+HAIR = (52, 40, 34, 255)
+CAP = (250, 122, 58, 255)          # orange baseball cap (ref signature)
+CAP_SH = (226, 100, 42, 255)
+SWEATER = (233, 225, 211, 255)     # cream crew-neck (ref)
+SWEATER_SH = (208, 198, 182, 255)
+EMBLEM = (235, 90, 50, 255)        # red chest emblem (ref)
+CUFF_RED = (235, 90, 50, 255)
+CUFF_WHITE = (248, 244, 236, 255)
 JEANS = (52, 58, 76, 255)
 SHOE = (242, 239, 232, 255)
 SOLE = (205, 200, 190, 255)
@@ -49,14 +52,15 @@ def _mix(c1, c2, t):
     return tuple(int(a + (b - a) * t) for a, b in zip(c1, c2))
 
 
-HATCH_HOODIE = _mix(INK, HOODIE, 0.30)
+HATCH_CAP = _mix(INK, CAP, 0.82)
+HATCH_SWEATER = _mix(INK, SWEATER, 0.88)
 HATCH_JEANS = _mix(INK, JEANS, 0.30)
 
 RNG = random.Random(0)
 
 
 def _reseed(name: str) -> None:
-    """Deterministic wobble per pose — the sheet matches the saved sprites."""
+    """Deterministic wobble + grain per pose — the sheet matches saved sprites."""
     RNG.seed(zlib.crc32(name.encode()) ^ 0xA11CE)
 
 
@@ -83,17 +87,20 @@ def _sketch_ellipse(d, cx, cy, rx, ry, fill, outline=INK, width=6, amt=2.5, n=48
 
 
 def _limb(d, p0, p1, w0, w1, fill):
-    """Tapered sleeve with hand-drawn wobble + ink outline."""
+    """Tapered sleeve with hand-drawn wobble, ink outline, striped wrist cuff."""
     dx, dy = p1[0] - p0[0], p1[1] - p0[1]
     ln = math.hypot(dx, dy) or 1.0
     nx, ny = -dy / ln, dx / ln
     pts = [(p0[0] + nx * w0, p0[1] + ny * w0), (p1[0] + nx * w1, p1[1] + ny * w1),
            (p1[0] - nx * w1, p1[1] - ny * w1), (p0[0] - nx * w0, p0[1] - ny * w0)]
     _sketch_poly(d, pts, fill, width=5, amt=2.0)
-    # cuff line at the wrist
-    cx, cy = (p1[0] + nx * w1 * 0.7, p1[1] + ny * w1 * 0.7)
-    d.line([_j((cx - nx * 12, cy - ny * 12), 1.5), _j((cx + nx * 12, cy + ny * 12), 1.5)],
-           fill=INK, width=4)
+    # wrist band: the ref wears red/white striped cuffs
+    cx, cy = p1[0] + nx * w1 * 0.55, p1[1] + ny * w1 * 0.55
+    for i, col in ((0, CUFF_RED), (1, CUFF_WHITE), (2, CUFF_RED)):
+        t = (i - 1) * 4.5
+        a = _j((cx + nx * (w1 * 0.9) - dx / ln * t, cy + ny * (w1 * 0.9) - dy / ln * t), 1.0)
+        b = _j((cx - nx * (w1 * 0.9) - dx / ln * t, cy - ny * (w1 * 0.9) - dy / ln * t), 1.0)
+        d.line([a, b], fill=col, width=4)
 
 
 def _hand(d, cx, cy, r=26, spread=False, fingers=True):
@@ -117,6 +124,23 @@ def _hatch(d, x, y, n, ang_deg, ln=26, color=INK, width=3, gap=9):
                fill=color, width=width)
 
 
+def _grain(img, bbox, n, color):
+    """Sketch-grain speckles clipped to the drawn shape inside bbox."""
+    x0, y0, x1, y1 = bbox
+    region = np.asarray(img.crop((x0, y0, x1, y1))).copy()
+    mask = region[..., 3] > 40
+    h, w = mask.shape
+    hits = 0
+    for _ in range(n * 3):
+        if hits >= n:
+            break
+        gx, gy = RNG.randrange(w), RNG.randrange(h)
+        if mask[gy, gx]:
+            region[gy, gx] = color
+            hits += 1
+    img.paste(Image.fromarray(region), (x0, y0))
+
+
 # ---------- body parts (shared by every pose) ----------
 
 def _shadow(img):
@@ -137,45 +161,56 @@ def _legs(d):
         d.line([_j((x0 + 8, 684), 1.5), _j((x1 - 8, 684), 1.5)], fill=SOLE, width=5)
 
 
-def _torso(d):
+def _torso(img, d):
+    # cream crew-neck sweater (ref) with red chest emblem
     _sketch_poly(d, [(218, 360), (422, 360), (444, 552), (196, 552)],
-                 HOODIE, width=6, amt=2.5)
-    # kangaroo pocket + drawstrings + hatching
-    _sketch_poly(d, [(272, 470), (368, 470), (382, 545), (258, 545)],
-                 HOODIE_SH, width=4, amt=2.0)
-    for x0, x1 in (((300, 382), (292, 420)), ((340, 382), (348, 420))):
-        d.line([_j(x0, 1.5), _j(x1, 1.5)], fill=STRING, width=5)
-        d.ellipse([x1[0] - 5, x1[1] - 3, x1[0] + 5, x1[1] + 7], fill=STRING)
-    _hatch(d, 214, 420, 4, -50, color=HATCH_HOODIE)
+                 SWEATER, width=6, amt=2.5)
+    _sketch_ellipse(d, 320, 352, 52, 26, SWEATER_SH, width=5, amt=2.0)  # collar band
+    # red diamond emblem on the chest (ref detail)
+    ex, ey, er = 320, 432, 15
+    _sketch_poly(d, [(ex, ey - er), (ex + er, ey), (ex, ey + er), (ex - er, ey)],
+                 EMBLEM, width=4, amt=1.0)
+    _hatch(d, 214, 420, 4, -50, color=HATCH_SWEATER)
+    _grain(img, (190, 350, 450, 560), 260, HATCH_SWEATER)
 
 
-def _collar(d):
-    _sketch_ellipse(d, 320, 350, 54, 30, HOODIE_SH, width=5, amt=2.0)
-
-
-def _head(d):
-    # ears first (peek out), then head, hair, face
-    _sketch_ellipse(d, 173, 218, 20, 26, SKIN, width=5, amt=1.5, n=30)
-    _sketch_ellipse(d, 467, 218, 20, 26, SKIN, width=5, amt=1.5, n=30)
-    _sketch_ellipse(d, 320, 208, 148, 132, SKIN, width=6, amt=2.5)
-    # messy hair (no cap — deliberately different from the ref's orange cap)
-    for cx, cy, rx, ry in ((320, 118, 132, 62), (225, 150, 55, 42), (415, 150, 55, 42),
-                           (320, 162, 95, 40), (180, 205, 26, 38), (460, 205, 26, 38)):
-        _sketch_ellipse(d, cx, cy, rx, ry, HAIR, width=5, amt=3.0, n=36)
-    _hatch(d, 250, 96, 3, -35, color=HAIR_HI, width=4)
-    # stray strands
-    for x0, y0, x1, y1 in ((262, 66, 244, 26), (320, 52, 318, 12), (376, 66, 394, 28)):
-        d.line([_j((x0, y0), 2), _j((x1, y1), 2)], fill=INK, width=4)
+def _head(img):
+    """Head on its own layer (so cap grain clips to the cap), then composited."""
+    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    # big round ears first (ref: prominent ears, sticking out)
+    _sketch_ellipse(d, 162, 226, 27, 30, SKIN, width=5, amt=1.5, n=30)
+    _sketch_ellipse(d, 478, 226, 27, 30, SKIN, width=5, amt=1.5, n=30)
+    d.arc([148, 212, 178, 242], start=60, end=200, fill=INK, width=3)
+    d.arc([462, 212, 492, 242], start=340, end=120, fill=INK, width=3)
     # face
-    d.line([_j((240, 182), 1.5), _j((288, 176), 1.5)], fill=INK, width=7)
-    d.line([_j((352, 176), 1.5), _j((400, 182), 1.5)], fill=INK, width=7)
-    for ex in (264, 376):
-        d.ellipse([ex - 15, 196, ex + 15, 236], fill=INK)
-        d.ellipse([ex - 6, 202, ex + 4, 212], fill=(255, 255, 255, 255))
-    d.line([_j((310, 256), 1.5), _j((320, 266), 1.5), _j((330, 256), 1.5)],
+    _sketch_ellipse(d, 320, 208, 148, 132, SKIN, width=6, amt=2.5)
+    # curly black side-hair peeking below the cap (ref), ears stay visible
+    for cx, cy, r in ((198, 176, 23), (186, 206, 18), (442, 176, 23), (454, 206, 18)):
+        _sketch_ellipse(d, cx, cy, r, r * 0.9, HAIR, width=4, amt=2.0, n=26)
+    # orange baseball cap (ref signature): dome + brim + button
+    cap_pts = []
+    for i in range(25):
+        a = math.pi + math.pi * i / 24  # upper half-ellipse
+        cap_pts.append((320 + math.cos(a) * (134 + RNG.uniform(-3, 3)),
+                        150 + math.sin(a) * (98 + RNG.uniform(-3, 3))))
+    d.polygon(cap_pts, fill=CAP)
+    d.line(cap_pts + [cap_pts[0]], fill=INK, width=6, joint="curve")
+    _sketch_ellipse(d, 320, 152, 134, 20, CAP_SH, width=5, amt=2.0, n=40)  # brim
+    _sketch_ellipse(d, 320, 58, 12, 9, CAP_SH, width=4, amt=1.0, n=20)     # button
+    _hatch(d, 236, 96, 3, -40, color=HATCH_CAP, width=4)
+    _grain(layer, (180, 46, 460, 176), 140, HATCH_CAP)
+    # face details (brows under the brim, big round eyes, blush)
+    d.line([_j((238, 202), 1.5), _j((290, 196), 1.5)], fill=INK, width=8)
+    d.line([_j((350, 196), 1.5), _j((402, 202), 1.5)], fill=INK, width=8)
+    for ex in (262, 378):
+        d.ellipse([ex - 17, 212, ex + 17, 254], fill=INK)
+        d.ellipse([ex - 7, 218, ex + 5, 230], fill=(255, 255, 255, 255))
+    d.line([_j((310, 264), 1.5), _j((320, 274), 1.5), _j((330, 264), 1.5)],
            fill=INK, width=4, joint="curve")
-    for bx in (232, 408):
-        _sketch_ellipse(d, bx, 258, 22, 12, BLUSH, outline=None, width=0, amt=2.0, n=24)
+    for bx in (228, 412):
+        _sketch_ellipse(d, bx, 282, 22, 12, BLUSH, outline=None, width=0, amt=2.0, n=24)
+    img.alpha_composite(layer)
 
 
 # ---------- poses (arm choreography only; body/head shared) ----------
@@ -186,10 +221,9 @@ def _render(name, arms, hands, extras=None):
     _shadow(img)
     d = ImageDraw.Draw(img)
     _legs(d)
-    _torso(d)
-    _collar(d)
+    _torso(img, d)
     arms(d)
-    _head(d)
+    _head(img)
     for h in hands:
         h(d)
     if extras:
@@ -198,8 +232,8 @@ def _render(name, arms, hands, extras=None):
 
 
 def _arms_idle(d):
-    _limb(d, (240, 375), (226, 492), 17, 13, HOODIE)
-    _limb(d, (400, 375), (414, 492), 17, 13, HOODIE)
+    _limb(d, (240, 375), (226, 492), 17, 13, SWEATER)
+    _limb(d, (400, 375), (414, 492), 17, 13, SWEATER)
 
 
 def pose_idle():
@@ -209,8 +243,8 @@ def pose_idle():
 
 def pose_point():
     def arms(d):
-        _limb(d, (240, 375), (226, 492), 17, 13, HOODIE)
-        _limb(d, (400, 375), (468, 190), 17, 12, HOODIE)
+        _limb(d, (240, 375), (226, 492), 17, 13, SWEATER)
+        _limb(d, (400, 375), (468, 190), 17, 12, SWEATER)
 
     def hand(d):
         _hand(d, 478, 156, r=27, spread=True, fingers=True)
@@ -222,9 +256,9 @@ def pose_point():
 def pose_shrug():
     def arms(d):
         for sx, ex in ((240, 148), (400, 492)):
-            _limb(d, (sx, 380), (ex, 336), 16, 12, HOODIE)
-        _sketch_ellipse(d, 252, 354, 22, 12, HOODIE, width=4, amt=1.5, n=22)
-        _sketch_ellipse(d, 388, 354, 22, 12, HOODIE, width=4, amt=1.5, n=22)
+            _limb(d, (sx, 380), (ex, 336), 16, 12, SWEATER)
+        _sketch_ellipse(d, 252, 354, 22, 12, SWEATER_SH, width=4, amt=1.5, n=22)
+        _sketch_ellipse(d, 388, 354, 22, 12, SWEATER_SH, width=4, amt=1.5, n=22)
 
     def hands(d):
         _sketch_ellipse(d, 130, 320, 26, 19, SKIN, width=5, amt=1.5, n=28)
@@ -235,8 +269,8 @@ def pose_shrug():
 
 def pose_wave():
     def arms(d):
-        _limb(d, (240, 375), (226, 492), 17, 13, HOODIE)
-        _limb(d, (400, 375), (458, 205), 17, 12, HOODIE)
+        _limb(d, (240, 375), (226, 492), 17, 13, SWEATER)
+        _limb(d, (400, 375), (458, 205), 17, 12, SWEATER)
 
     def hand(d):
         _hand(d, 470, 172, r=27, spread=True, fingers=True)
@@ -251,8 +285,8 @@ def pose_wave():
 
 def pose_think():
     def arms(d):
-        _limb(d, (240, 375), (226, 492), 17, 13, HOODIE)
-        _limb(d, (400, 375), (392, 318), 16, 11, HOODIE)
+        _limb(d, (240, 375), (226, 492), 17, 13, SWEATER)
+        _limb(d, (400, 375), (392, 318), 16, 11, SWEATER)
 
     def hand(d):
         # hand at the CHEEK (hmm-pose) — clear of the mouth overlay box
@@ -265,8 +299,8 @@ def pose_think():
 
 def pose_chest():
     def arms(d):
-        _limb(d, (240, 375), (226, 492), 17, 13, HOODIE)
-        _limb(d, (400, 375), (348, 424), 16, 12, HOODIE)
+        _limb(d, (240, 375), (226, 492), 17, 13, SWEATER)
+        _limb(d, (400, 375), (348, 424), 16, 12, SWEATER)
 
     def hand(d):
         _sketch_ellipse(d, 334, 434, 27, 19, SKIN, width=5, amt=1.5, n=28)
@@ -276,8 +310,8 @@ def pose_chest():
 
 def pose_thumbs():
     def arms(d):
-        _limb(d, (240, 375), (226, 492), 17, 13, HOODIE)
-        _limb(d, (400, 380), (418, 288), 17, 13, HOODIE)
+        _limb(d, (240, 375), (226, 492), 17, 13, SWEATER)
+        _limb(d, (400, 380), (418, 288), 17, 13, SWEATER)
 
     def hand(d):
         _sketch_ellipse(d, 422, 264, 24, 21, SKIN, width=5, amt=1.5, n=28)
@@ -290,8 +324,8 @@ def pose_thumbs():
 
 def pose_spread():
     def arms(d):
-        _limb(d, (240, 378), (122, 352), 17, 12, HOODIE)
-        _limb(d, (400, 378), (518, 352), 17, 12, HOODIE)
+        _limb(d, (240, 378), (122, 352), 17, 12, SWEATER)
+        _limb(d, (400, 378), (518, 352), 17, 12, SWEATER)
 
     def hands(d):
         _hand(d, 104, 346, r=24)
@@ -374,7 +408,8 @@ def main() -> None:
         "sprite": {"w": W, "h": H},
         "mouth": MOUTH,
         "poses": {},
-        "style": "sketch-v2 (code-drawn, deterministic wobble; family-2 style-match)",
+        "style": "sketch-v3 (code-drawn, deterministic; Marktalksai style-match: "
+                 "orange cap, curls, big ears, cream sweater, chest emblem, striped cuffs, grain)",
         "note": "One sketch guy, drawn in code. Reused in every video. Mouth overlaid at render time.",
     }
     for name, fn in POSES.items():
