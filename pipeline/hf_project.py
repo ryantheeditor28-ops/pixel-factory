@@ -1,17 +1,22 @@
 """Stage 5 — generate a HyperFrames project from timeline.json.
 
 Writes build/video/ as a complete HyperFrames composition:
-  index.html                    root: scene hosts + voice audio
+  index.html                    root: scene hosts + voice + SFX + brand logo
   compositions/scene-NN.html    one scene per script segment
   assets/character/*.png        the pixel guy (copied)
   assets/voice/voice.mp3        full mixed voice track (copied)
+  assets/sfx/*.mp3              CC0 foley kit (Freesound; see sfx manifest)
+  assets/brand/logo.png         TechPixel Guy wordmark, transparent, top overlay
 
-Layout (1080x1920) follows the vertical safe-zone spec: kicker 190px, title from
-285px, card from 700px, captions 1140-1275px, character below 1276px. Scene 1
-shows the title/kicker/guy on FRAME 0 (the thumbnail); scenes tile the full
-timeline with no blank gaps; the mouth is a stack of per-sound PNGs swapped on
-rhubarb cues (image mouths, template-style). Every element pops with springy
-back.out easing, and "demo" cards play the Claude-Code-building-a-video scene.
+Layout (1080x1920) follows the vertical safe-zone spec: brand logo 52-156px,
+kicker 190px, title from 285px, card from 700px, captions 1136-1278px, character
+below 1276px. Scene 1 shows the title/kicker/guy on FRAME 0 (the thumbnail);
+scenes tile the full timeline with no blank gaps; the mouth is a stack of
+per-sound PNGs swapped on rhubarb cues (image mouths, template-style). Every
+element pops with springy back.out easing, "demo" cards play the
+Claude-Code-building-a-video scene, and ALL shot timing + sound cues come from
+pipeline/shot_plan.py (video-shotcraft methodology: accelerating stagger, holds,
+real-material foley — no game timbres).
 """
 from __future__ import annotations
 
@@ -21,6 +26,8 @@ import time
 from pathlib import Path
 
 from llm import dump_json, load_json
+from shot_plan import (BLOCK_OFFSETS, PROG_DURATION, PROG_START, TYPING_OFFSETS,
+                       TYPING_T0, plan_shots)
 
 
 def _rm_tree(path: Path) -> None:
@@ -156,8 +163,9 @@ def _card_html(card: dict, uid: str) -> str:
 </div>'''
     if kind == "list":
         items = "".join(
-            f'<div class="cw-item"><span class="cw-check">✓</span><span>{_esc(i)}</span></div>'
-            for i in card.get("items", [])[:3])
+            f'<div id="{uid}-item{j}" class="cw-item"><span class="cw-check">✓</span>'
+            f'<span>{_esc(item)}</span></div>'
+            for j, item in enumerate(card.get("items", [])[:3]))
         return f'''<div id="{uid}-card" class="clip hf-card" data-start="__CARDSTART__" data-duration="__CDUR__">
   <div class="cw-body"><div class="cw-list">{items}</div></div>
 </div>'''
@@ -225,7 +233,7 @@ SCENE_CSS = """
   .cw-big { font-family:'Archivo Black',sans-serif; font-size:150px; line-height:1; color:__ACCENT__; }
   .cw-label { margin-top:14px; font:800 30px 'Inter'; letter-spacing:5px; color:#3d4356; }
   .cw-list { display:flex; flex-direction:column; gap:24px; }
-  .cw-item { display:flex; align-items:center; gap:20px; font:700 34px 'Inter'; color:#0e1220; }
+  .cw-item { display:flex; align-items:center; gap:20px; font:700 34px 'Inter'; color:#0e1220; opacity:0; }
   .cw-check { display:flex; align-items:center; justify-content:center; width:46px; height:46px;
     border-radius:50%; background:__ACCENT__; color:#fff; font-size:28px; flex:0 0 46px; }
   .cw-chip { text-align:center; padding:56px 20px 0; }
@@ -235,8 +243,8 @@ SCENE_CSS = """
   #__UID__-caps { position:absolute; top:1136px; left:90px; right:90px; height:142px;
     text-align:center; }
   .phrase { position:absolute; left:0; right:0; top:0; }
-  .caps-l1 { display:block; font:900 56px/1.04 'Inter'; color:__ACCENT__; letter-spacing:-1px; }
-  .caps-l2 { display:block; margin-top:8px; font:800 44px/1.08 'Inter'; color:#10131a; }
+  .caps-l1 { display:block; font:900 64px/1.04 'Inter'; color:__ACCENT__; letter-spacing:-1px; }
+  .caps-l2 { display:block; margin-top:8px; font:800 50px/1.08 'Inter'; color:#10131a; }
   #__UID__-guy { position:absolute; bottom:12px; left:calc(50% - 280px); width:560px; height:630px; }
   #__UID__-body { position:absolute; inset:0; }
   #__UID__-body .pose { position:absolute; left:0; top:0; width:100%; height:100%;
@@ -382,15 +390,28 @@ def _scene_html(idx: int, scene: dict, tl_data: dict, lead: float) -> str:
                if card_html else [])
 
     # demo card: typed command -> filling progress bar -> staggered timeline blocks
+    # (all offsets come from shot_plan so the keystroke foley lands exactly on each
+    # chunk reveal, and the blocks pop with an accelerating batch cadence — R2)
     demo_tl = []
     if scene.get("card", {}).get("kind") == "demo":
         chunks = _cmd_chunks(scene["card"].get("cmd", ""))
-        for i in range(len(chunks)):
-            demo_tl.append(f'  tl.fromTo("#{uid}-cc{i}",{{opacity:0}},{{opacity:1,duration:0.05,immediateRender:false}},{card_start + 0.25 + i * 0.16:.2f});')
+        for i in range(min(len(chunks), len(TYPING_OFFSETS))):
+            t = card_start + TYPING_T0 + TYPING_OFFSETS[i]
+            demo_tl.append(f'  tl.fromTo("#{uid}-cc{i}",{{opacity:0}},{{opacity:1,duration:0.05,immediateRender:false}},{t:.2f});')
         demo_tl.append(f'  tl.fromTo("#{uid}-cur",{{opacity:1}},{{opacity:0,duration:0.4,yoyo:true,repeat:99,ease:"steps(1)"}},{card_start + 0.20:.2f});')
-        demo_tl.append(f'  tl.fromTo("#{uid}-progbar",{{width:"4%"}},{{width:"96%",duration:2.4,ease:"power1.inOut",immediateRender:false}},{card_start + 0.35:.2f});')
-        for i in range(6):
-            demo_tl.append(f'  tl.fromTo("#{uid}-blk{i}",{{scale:0,opacity:0}},{{scale:1,opacity:1,duration:0.26,ease:"back.out(2.4)",immediateRender:false}},{card_start + 0.90 + i * 0.14:.2f});')
+        demo_tl.append(f'  tl.fromTo("#{uid}-progbar",{{width:"4%"}},{{width:"96%",duration:{PROG_DURATION},ease:"power1.inOut",immediateRender:false}},{card_start + PROG_START:.2f});')
+        for i, off in enumerate(BLOCK_OFFSETS):
+            demo_tl.append(f'  tl.fromTo("#{uid}-blk{i}",{{scale:0,opacity:0}},{{scale:1,opacity:1,duration:0.26,ease:"back.out(2.4)",immediateRender:false}},{card_start + off:.2f});')
+
+    # list card: items deal in with an accelerating cadence, then the batch
+    # settles (R2: never uniform, always accelerating, 0.4s+ of stillness after)
+    list_tl = []
+    if scene.get("card", {}).get("kind") == "list":
+        t = card_start + 0.30
+        for j in range(3):
+            list_tl.append(f'  tl.fromTo("#{uid}-item{j}",{{y:30,scale:0.92,opacity:0}},'
+                           f'{{y:0,scale:1,opacity:1,duration:0.30,ease:"back.out(1.6)",immediateRender:false}},{t:.2f});')
+            t += 0.20 * (0.80 ** j)
 
     html = f'''<template>
 <style>{SCENE_CSS.replace("__UID__", uid).replace("__ACCENT__", accent)}</style>
@@ -415,7 +436,7 @@ def _scene_html(idx: int, scene: dict, tl_data: dict, lead: float) -> str:
 </div>
 <script>
   const tl = gsap.timeline({{ paused: true }});
-{chr(10).join(title_tl + kicker_tl + card_tl + guy_tl + demo_tl + gesture_tl)}
+{chr(10).join(title_tl + kicker_tl + card_tl + guy_tl + demo_tl + list_tl + gesture_tl)}
   tl.fromTo("#{uid}-blob1", {{ x: 0, y: 0 }}, {{ x: 60, y: -50, duration: 4, yoyo: true, repeat: 99, ease: "sine.inOut", immediateRender: false }}, 0);
   tl.fromTo("#{uid}-blob2", {{ x: 0, y: 0 }}, {{ x: -50, y: 60, duration: 5, yoyo: true, repeat: 79, ease: "sine.inOut", immediateRender: false }}, 0);
 {chr(10).join(mouth_tl)}
@@ -429,7 +450,7 @@ def _scene_html(idx: int, scene: dict, tl_data: dict, lead: float) -> str:
     return html
 
 
-def _root_html(tl_data: dict, total: float) -> str:
+def _root_html(tl_data: dict, total: float, sfx_cues: list[dict]) -> str:
     hosts = []
     for sc in tl_data["scenes"]:
         vals = json.dumps({"kicker": tl_data["kicker"]}, ensure_ascii=True).replace("'", "&#39;")
@@ -439,20 +460,38 @@ def _root_html(tl_data: dict, total: float) -> str:
             f'data-start="{sc["start"]:.3f}" data-duration="{sc["duration"]:.3f}" '
             f'data-track-index="1" data-track-kind="graphics" '
             f'data-width="1080" data-height="1920" data-variable-values=\'{vals}\'></div>')
+    # SFX cues from the shot plan: declarative table -> audio clips, each cut to
+    # its action length, spread over 4 tracks so neighbours never cut each other.
+    audios = []
+    for i, c in enumerate(sfx_cues):
+        track = 10 + (i % 4)
+        audios.append(
+            f'      <audio data-start="{c["t"]:.3f}" data-duration="{c["cut"]:.2f}" '
+            f'data-track-index="{track}" data-volume="{c["vol"]}" src="{c["file"]}"></audio>'
+            f'<!-- {c["action"]} -->')
     return f'''<!doctype html>
 <html lang="en">
-  <head><meta charset="UTF-8" /><meta name="viewport" content="width=1080, height=1920" /></head>
+  <head><meta charset="UTF-8" /><meta name="viewport" content="width=1080, height=1920" />
+    <style>
+      #brand {{ position:absolute; top:52px; left:0; right:0; display:flex;
+               justify-content:center; z-index:50; pointer-events:none; }}
+      #brand img {{ height:104px; filter:drop-shadow(0 6px 18px rgba(10,14,28,.18)); }}
+    </style>
+  </head>
   <body>
     <div id="root" data-composition-id="main" data-start="0" data-duration="{total:.3f}"
          data-width="1080" data-height="1920">
 {chr(10).join(hosts)}
+      <div id="brand" data-layout-ignore><img src="assets/brand/logo.png" alt="TechPixel Guy"></div>
       <audio id="voice" data-start="0" data-duration="{total:.3f}" data-track-index="9"
              data-volume="1" src="assets/voice/voice.mp3"></audio>
+{chr(10).join(audios)}
     </div>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
     <script>
       window.__timelines = window.__timelines || {{}};
       const tl = gsap.timeline({{ paused: true }});
+      tl.fromTo("#brand", {{ scale: 0.92 }}, {{ scale: 1, duration: 0.40, ease: "back.out(1.8)" }}, 0.05);
       window.__timelines["main"] = tl;
       tl.seek(0);
     </script>
@@ -466,12 +505,24 @@ def generate(timeline: dict, build_dir: Path) -> Path:
         _rm_tree(proj)
     (proj / "compositions").mkdir(parents=True)
     (proj / "assets" / "voice").mkdir(parents=True)
-    char_src = Path(__file__).resolve().parent.parent / "assets" / "character"
+    root = Path(__file__).resolve().parent.parent
+    char_src = root / "assets" / "character"
     char_dst = proj / "assets" / "character"
     char_dst.mkdir(parents=True, exist_ok=True)
     for png in char_src.glob("*.png"):
         shutil.copy2(png, char_dst / png.name)
     shutil.copy2(build_dir / "voice" / "voice.mp3", proj / "assets" / "voice" / "voice.mp3")
+    # brand logo + SFX kit ship with every project (transparent wordmark overlay
+    # + the Freesound CC0 foley the shot plan cues)
+    brand_src = root / "assets" / "brand" / "logo.png"
+    if brand_src.exists():
+        (proj / "assets" / "brand").mkdir(parents=True, exist_ok=True)
+        shutil.copy2(brand_src, proj / "assets" / "brand" / "logo.png")
+    sfx_src = root / "assets" / "sfx"
+    if sfx_src.exists():
+        (proj / "assets" / "sfx").mkdir(parents=True, exist_ok=True)
+        for f in sfx_src.glob("*.mp3"):
+            shutil.copy2(f, proj / "assets" / "sfx" / f.name)
 
     tl_data = dict(timeline)
     # per-scene title lines: scene 1 carries the big video title; later scenes use
@@ -483,7 +534,15 @@ def generate(timeline: dict, build_dir: Path) -> Path:
         titles.append(punch[:26])
     tl_data["_titles"] = titles
 
-    (proj / "index.html").write_text(_root_html(tl_data, timeline["total"]), encoding="utf-8", newline="\n")
+    # shot + sound plan (video-shotcraft methodology): every SFX cue with absolute
+    # time, file, volume and action comment; re-derived on every build so a
+    # timeline change re-pins the whole table (S3).
+    cues = plan_shots(tl_data)
+    dump_json(proj / "sfx-cue-table.json",
+              {"video_total_s": timeline["total"], "cues": cues})
+
+    (proj / "index.html").write_text(
+        _root_html(tl_data, timeline["total"], cues), encoding="utf-8", newline="\n")
     for i, sc in enumerate(tl_data["scenes"], start=1):
         html = _scene_html(i, sc, tl_data, sc.get("audio_offset", 0.0))
         (proj / "compositions" / f"scene-{i:02d}.html").write_text(html, encoding="utf-8", newline="\n")
