@@ -123,9 +123,14 @@ def pose_point():
               (12, 27), (12, 28), (11, 28), (10, 28), (10, 29)]
     for r, c in sleeve:
         px(g, r, c, "t")
-    rect(g, 8, 10, 27, 29, "s")   # fist (3x3)
-    rect(g, 5, 7, 28, 28, "s")    # index finger (1 wide, centered)
-    px(g, 9, 28, "S")             # knuckle shade
+    # open raised hand — spread fingers, never a lone finger (a single raised
+    # finger read as a middle finger in the reels; kid-safe fix)
+    rect(g, 7, 9, 26, 29, "s")    # palm
+    rect(g, 4, 6, 26, 26, "s")    # finger (pinky side)
+    rect(g, 3, 6, 28, 28, "s")    # finger (middle, tallest)
+    rect(g, 4, 6, 30, 30, "s")    # finger (index side)
+    px(g, 8, 30, "s"); px(g, 7, 31, "s")  # thumb nub
+    px(g, 9, 27, "S")             # palm shade
     return g
 
 
