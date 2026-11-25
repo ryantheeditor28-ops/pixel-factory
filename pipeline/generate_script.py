@@ -81,7 +81,8 @@ def fallback_script(topic: dict | None, keyword: str, cfg: dict) -> dict:
                                           "desc": desc, "lang": topic["lang"]},
              "text": f"The number one new repo on GitHub right now is {name.split('/')[-1]}. "
                      f"Thousands of stars in seven days. Here is why everyone is watching it."},
-            {"gesture": "thumbs", "card": {"kind": "plain"},
+            {"gesture": "thumbs", "card": {"kind": "demo",
+                                           "cmd": "make a viral video about " + name.split("/")[-1]},
              "text": f"It does one thing extremely well: {desc[:110]}. "
                      f"No bloat, no subscriptions, just code that works."},
             {"gesture": "think", "card": {"kind": "stats", "big": stars, "label": "STARS IN 7 DAYS"},
