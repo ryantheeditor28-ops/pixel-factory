@@ -9,7 +9,9 @@ Writes build/video/ as a complete HyperFrames composition:
 Layout (1080x1920) follows the vertical safe-zone spec: kicker 190px, title from
 285px, card from 700px, captions 1140-1275px, character below 1276px. Scene 1
 shows the title/kicker/guy on FRAME 0 (the thumbnail); scenes tile the full
-timeline with no blank gaps; mouth starts closed via a position-0 baseline tween.
+timeline with no blank gaps; the mouth is a stack of per-sound PNGs swapped on
+rhubarb cues (image mouths, template-style). Every element pops with springy
+back.out easing, and "demo" cards play the Claude-Code-building-a-video scene.
 """
 from __future__ import annotations
 
@@ -31,11 +33,7 @@ def _rm_tree(path: Path) -> None:
             time.sleep(0.5 * (attempt + 1))
     shutil.rmtree(path, ignore_errors=True)
 
-MOUTH_SHAPES = {  # scaleX, scaleY of the max-size mouth box
-    "A": (1.00, 1.05), "B": (0.85, 0.55), "C": (1.00, 0.40), "D": (1.05, 1.15),
-    "E": (0.55, 0.22), "F": (0.50, 0.40), "G": (0.80, 0.80), "H": (0.70, 0.60),
-    "X": (0.62, 0.10),
-}
+MOUTH_ORDER = ("A", "B", "C", "D", "E", "F", "G", "H", "X")  # one PNG per rhubarb sound
 
 GITHUB_SVG = ('<svg viewBox="0 0 24 24" width="38" height="38" fill="#0e1220">'
               '<path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 '
@@ -114,6 +112,16 @@ def _highlight_html(text: str, highlight: str) -> str:
     return "".join(out)
 
 
+def _cmd_chunks(cmd: str, max_chunks: int = 6) -> list[str]:
+    """Group the demo card's command into a few word-chunks for the typing effect."""
+    words = str(cmd).split()
+    if not words:
+        return ["make a viral video"]
+    n = min(max_chunks, len(words))
+    size = -(-len(words) // n)  # ceil division
+    return [" ".join(words[i:i + size]) for i in range(0, len(words), size)][:max_chunks]
+
+
 def _card_html(card: dict, uid: str) -> str:
     kind = card.get("kind", "plain")
     if kind == "repo":
@@ -152,6 +160,33 @@ def _card_html(card: dict, uid: str) -> str:
             for i in card.get("items", [])[:3])
         return f'''<div id="{uid}-card" class="clip hf-card" data-start="__CARDSTART__" data-duration="__CDUR__">
   <div class="cw-body"><div class="cw-list">{items}</div></div>
+</div>'''
+    if kind == "demo":
+        # Claude-Code-building-your-video: typed prompt + filling progress bar,
+        # stacked over a Timeline card whose colored segments pop in staggered.
+        chunks = _cmd_chunks(card.get("cmd", "make a viral video"))
+        spans = "".join(
+            f'<span id="{uid}-cc{i}" class="cw-cchunk">{_esc(c)} </span>'
+            for i, c in enumerate(chunks))
+        colors = ("#2f6bff", "#28c840", "#ff9a3c", "#a06bff", "#ff5f57", "#18c3d8")
+        widths = (1.5, 1.0, 1.9, 1.2, 0.9, 1.6)
+        blocks = "".join(
+            f'<div id="{uid}-blk{i}" class="cw-tlblock" style="flex:{widths[i]};background:{colors[i]};"></div>'
+            for i in range(len(colors)))
+        return f'''<div id="{uid}-card" class="clip hf-card hf-demo" data-start="__CARDSTART__" data-duration="__CDUR__">
+  <div class="cw-term">
+    <div class="cw-head"><span class="cw-dot r"></span><span class="cw-dot y"></span><span class="cw-dot g"></span><span class="cw-title dark">Claude Code</span></div>
+    <div class="cw-termbody">
+      <div class="cw-cmdrow"><span class="cw-spark">✦</span><span class="cw-cmd">{spans}<span id="{uid}-cur" class="cw-cur">▊</span></span></div>
+      <div class="cw-build"><span class="cw-buildlabel">Building your video…</span>
+        <div class="cw-prog"><div id="{uid}-progbar" class="cw-progbar"></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="cw-tlcard">
+    <div class="cw-head"><span class="cw-dot r"></span><span class="cw-dot y"></span><span class="cw-dot g"></span><span class="cw-title">Timeline</span></div>
+    <div class="cw-tlbody">{blocks}</div>
+  </div>
 </div>'''
     return ""  # plain: replaced by the word chip in _scene_html
 
@@ -203,7 +238,27 @@ SCENE_CSS = """
   .phrase .acc { color:__ACCENT__; }
   #__UID__-guy { position:absolute; bottom:12px; left:calc(50% - 280px); width:560px; height:630px; }
   #__UID__-guy img { width:100%; height:100%; display:block; image-rendering:pixelated; }
-  #__UID__-mouth { position:absolute; background:#43261a; border-radius:45%; }
+  #__UID__-mouth { position:absolute; }
+  #__UID__-mouth .mshape { position:absolute; left:0; top:0; width:100%; height:100%;
+    opacity:0; image-rendering:pixelated; }
+  .hf-demo { display:flex; flex-direction:column; }
+  .cw-term { background:#101423; border-radius:26px; overflow:hidden;
+    box-shadow:0 26px 60px rgba(8,12,26,.35); }
+  .cw-term .cw-head { background:#1b2138; }
+  .cw-termbody { padding:24px 28px 26px; }
+  .cw-cmdrow { display:flex; align-items:center; }
+  .cw-spark { color:#ff9a3c; font-size:30px; margin-right:14px; }
+  .cw-cmd { font:500 30px/1.35 'JetBrains Mono',monospace; color:#e8ecff; }
+  .cw-cchunk { opacity:0; }
+  .cw-cur { color:#ff9a3c; font:700 28px 'JetBrains Mono',monospace; }
+  .cw-build { margin-top:20px; display:flex; align-items:center; gap:16px; }
+  .cw-buildlabel { font:600 23px 'Inter'; color:#8f9cc4; white-space:nowrap; }
+  .cw-prog { flex:1; height:18px; background:#242c4a; border-radius:9px; overflow:hidden; }
+  .cw-progbar { height:100%; width:4%; background:linear-gradient(90deg,#ffb03c,#ff6a3c); border-radius:9px; }
+  .cw-tlcard { margin-top:24px; background:#ffffff; border-radius:26px; overflow:hidden;
+    box-shadow:0 26px 60px rgba(8,12,26,.16); }
+  .cw-tlbody { display:flex; gap:12px; padding:24px 22px; height:96px; align-items:stretch; }
+  .cw-tlblock { border-radius:12px; }
 """
 
 
@@ -247,40 +302,55 @@ def _scene_html(idx: int, scene: dict, tl_data: dict, lead: float) -> str:
             f'<div id="{uid}-p{pi}" class="clip phrase" data-start="{pstart:.3f}" '
             f'data-duration="{pdur:.3f}">{" ".join(spans)}</div>')
 
-    # mouth cues: baseline (closed X) at position 0, then step tweens per cue
+    # mouth: stacked per-sound PNGs, swapped on rhubarb cues (template-style image mouths)
     cues = scene.get("cues") or [{"t0": 0, "t1": duration, "shape": "X"}]
-    x = MOUTH_SHAPES["X"]
-    mouth_tl = [f'  tl.fromTo("#{uid}-mouth",{{scaleX:{x[0]},scaleY:{x[1]}}},'
-                f'{{scaleX:{x[0]},scaleY:{x[1]},duration:0.01,ease:"none"}},0);']
-    prev = x
+    mouth_imgs = "".join(
+        f'<img id="{uid}-m{s}" class="mshape" src="assets/character/mouth-{s}.png" alt="">'
+        for s in MOUTH_ORDER)
+    mouth_tl = [f'  tl.set("#{uid}-mX",{{opacity:1}},0);']
+    prev = "X"
     for c in cues:
-        s = MOUTH_SHAPES.get(c["shape"], x)
+        s = c["shape"] if c["shape"] in MOUTH_ORDER else "X"
         if s == prev:
             continue
         t = round(max(c["t0"] + lead, 0.02), 3)
-        mouth_tl.append(
-            f'  tl.fromTo("#{uid}-mouth",{{scaleX:{prev[0]},scaleY:{prev[1]}}},'
-            f'{{scaleX:{s[0]},scaleY:{s[1]},duration:0.03,ease:"none",immediateRender:false}},{t});')
+        mouth_tl.append(f'  tl.set("#{uid}-m{prev}",{{opacity:0}},{t});')
+        mouth_tl.append(f'  tl.set("#{uid}-m{s}",{{opacity:1}},{t});')
         prev = s
+    if prev != "X":  # settle back to closed when the line ends
+        t_close = round(min(max(cues[-1]["t1"] + lead + 0.06, 0.2), max(duration - 0.05, 0.25)), 3)
+        mouth_tl.append(f'  tl.set("#{uid}-m{prev}",{{opacity:0}},{t_close});')
+        mouth_tl.append(f'  tl.set("#{uid}-mX",{{opacity:1}},{t_close});')
     bob_repeat = max(int((duration - lead) / 0.68), 1) * 2
 
     # frame-0 (thumbnail) rule: scene 1 shows everything immediately — no opacity entrances
     if is_first:
         guy_tl = [
-            f'  tl.fromTo("#{uid}-img",{{scale:0.96,y:12}},{{scale:1,y:0,duration:0.28,ease:"power3.out"}},0);',
-            f'  tl.fromTo("#{uid}-img",{{y:0}},{{y:-12,duration:0.34,yoyo:true,repeat:{bob_repeat},ease:"sine.inOut",immediateRender:false}},{lead + 0.15:.2f});',
+            f'  tl.fromTo("#{uid}-img",{{scale:0.94,y:12}},{{scale:1,y:0,duration:0.30,ease:"back.out(1.6)"}},0);',
+            f'  tl.fromTo("#{uid}-img",{{y:0}},{{y:-12,duration:0.34,yoyo:true,repeat:{bob_repeat},ease:"sine.inOut",immediateRender:false}},{lead + 0.40:.2f});',
         ]
-        title_tl = [f'  tl.fromTo("#{uid}-title",{{y:26}},{{y:0,duration:0.30,ease:"power3.out",immediateRender:false}},0.01);']
+        title_tl = [f'  tl.fromTo("#{uid}-title",{{y:26,scale:0.96}},{{y:0,scale:1,duration:0.34,ease:"back.out(1.4)",immediateRender:false}},0.01);']
         kicker_tl = []
     else:
         guy_tl = [
-            f'  tl.fromTo("#{uid}-img",{{scale:0.94,y:18,opacity:0}},{{scale:1,y:0,opacity:1,duration:0.30,ease:"power3.out"}},0.05);',
-            f'  tl.fromTo("#{uid}-img",{{y:0}},{{y:-12,duration:0.34,yoyo:true,repeat:{bob_repeat},ease:"sine.inOut",immediateRender:false}},{lead + 0.15:.2f});',
+            f'  tl.fromTo("#{uid}-img",{{scale:0.88,y:18,opacity:0}},{{scale:1,y:0,opacity:1,duration:0.34,ease:"back.out(1.5)"}},0.05);',
+            f'  tl.fromTo("#{uid}-img",{{y:0}},{{y:-12,duration:0.34,yoyo:true,repeat:{bob_repeat},ease:"sine.inOut",immediateRender:false}},{lead + 0.40:.2f});',
         ]
-        title_tl = [f'  tl.fromTo("#{uid}-title",{{opacity:0,y:36}},{{opacity:1,y:0,duration:0.30,ease:"power3.out"}},0.04);']
-        kicker_tl = [f'  tl.fromTo("#{uid}-kicker",{{opacity:0}},{{opacity:1,duration:0.25}},0.10);']
-    card_tl = ([f'  tl.fromTo("#{uid}-card",{{opacity:0,y:60}},{{opacity:1,y:0,duration:0.35,ease:"power3.out",immediateRender:false}},{card_start:.2f});']
+        title_tl = [f'  tl.fromTo("#{uid}-title",{{opacity:0,y:36,scale:0.94}},{{opacity:1,y:0,scale:1,duration:0.38,ease:"back.out(1.5)"}},0.04);']
+        kicker_tl = [f'  tl.fromTo("#{uid}-kicker",{{opacity:0,y:-14}},{{opacity:1,y:0,duration:0.30,ease:"back.out(1.7)"}},0.10);']
+    card_tl = ([f'  tl.fromTo("#{uid}-card",{{opacity:0,y:60,scale:0.94}},{{opacity:1,y:0,scale:1,duration:0.40,ease:"back.out(1.4)",immediateRender:false}},{card_start:.2f});']
                if card_html else [])
+
+    # demo card: typed command -> filling progress bar -> staggered timeline blocks
+    demo_tl = []
+    if scene.get("card", {}).get("kind") == "demo":
+        chunks = _cmd_chunks(scene["card"].get("cmd", ""))
+        for i in range(len(chunks)):
+            demo_tl.append(f'  tl.to("#{uid}-cc{i}",{{opacity:1,duration:0.05}},{card_start + 0.25 + i * 0.14:.2f});')
+        demo_tl.append(f'  tl.fromTo("#{uid}-cur",{{opacity:1}},{{opacity:0,duration:0.4,yoyo:true,repeat:99,ease:"steps(1)"}},{card_start + 0.20:.2f});')
+        demo_tl.append(f'  tl.fromTo("#{uid}-progbar",{{width:"4%"}},{{width:"96%",duration:2.4,ease:"power1.inOut",immediateRender:false}},{card_start + 0.35:.2f});')
+        for i in range(6):
+            demo_tl.append(f'  tl.fromTo("#{uid}-blk{i}",{{scale:0,opacity:0}},{{scale:1,opacity:1,duration:0.26,ease:"back.out(2.4)",immediateRender:false}},{card_start + 0.90 + i * 0.14:.2f});')
 
     html = f'''<template>
 <style>{SCENE_CSS.replace("__UID__", uid).replace("__ACCENT__", accent)}</style>
@@ -298,12 +368,12 @@ def _scene_html(idx: int, scene: dict, tl_data: dict, lead: float) -> str:
   <div id="{uid}-caps" data-track-kind="captions">{''.join(phrases_html)}</div>
   <div id="{uid}-guy" class="clip" data-start="{t0}" data-duration="__GDUR__">
     <img id="{uid}-img" src="{guy}" alt="">
-    <div id="{uid}-mouth" style="{mouth_style}"></div>
+    <div id="{uid}-mouth" style="{mouth_style}">{mouth_imgs}</div>
   </div>
 </div>
 <script>
   const tl = gsap.timeline({{ paused: true }});
-{chr(10).join(title_tl + kicker_tl + card_tl + guy_tl)}
+{chr(10).join(title_tl + kicker_tl + card_tl + guy_tl + demo_tl)}
   tl.fromTo("#{uid}-blob1", {{ x: 0, y: 0 }}, {{ x: 60, y: -50, duration: 4, yoyo: true, repeat: 99, ease: "sine.inOut", immediateRender: false }}, 0);
   tl.fromTo("#{uid}-blob2", {{ x: 0, y: 0 }}, {{ x: -50, y: 60, duration: 5, yoyo: true, repeat: 79, ease: "sine.inOut", immediateRender: false }}, 0);
 {chr(10).join(mouth_tl)}

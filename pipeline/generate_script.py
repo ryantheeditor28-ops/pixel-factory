@@ -142,8 +142,8 @@ Rules:
 - Spoken text only in "text" fields: plain words, numbers as words where natural.
 - "highlight" = 1-3 WORDS from that segment's text to accent-color on screen.
 - "gesture" per segment, one of: point, thumbs, shrug, wave, think.
-- "card.kind" per segment, one of: repo (segment 1), stats (a big number), terminal (2-3 shell lines), list (2-3 short items), plain.
-- Use "plain" at most once, only for the final CTA. Middle segments prefer stats, terminal or list. Always FILL the fields a kind needs (stats: big+label, terminal: lines, list: items, repo: name+stars+desc+lang).
+- "card.kind" per segment, one of: repo (segment 1), stats (a big number), terminal (2-3 shell lines), list (2-3 short items), demo (a "Claude Code builds the video" terminal with a progress bar and timeline - use for exactly ONE middle segment), plain.
+- Use "plain" at most once, only for the final CTA. Middle segments prefer stats, terminal, list or demo. Always FILL the fields a kind needs (stats: big+label, terminal: lines, list: items, repo: name+stars+desc+lang, demo: cmd).
 
 Respond with ONLY valid JSON, no markdown:
 {{
@@ -151,7 +151,7 @@ Respond with ONLY valid JSON, no markdown:
   "kicker": "2-3 WORD CATEGORY LABEL",
   "segments": [
     {{"gesture": "...", "highlight": "...",
-      "card": {{"kind": "...", "name": "...", "stars": "...", "desc": "...", "lang": "...", "big": "...", "label": "...", "lines": ["..."], "items": ["..."]}},
+      "card": {{"kind": "...", "name": "...", "stars": "...", "desc": "...", "lang": "...", "big": "...", "label": "...", "lines": ["..."], "items": ["..."], "cmd": "..."}},
       "text": "..."}}
   ]
 }}
@@ -183,7 +183,7 @@ def llm_script(topic: dict, keyword: str, cfg: dict, seed: int) -> dict | None:
         if not isinstance(s, dict) or not isinstance(s.get("text"), str) or len(s["text"].strip()) < 10:
             return None
         card = s.get("card") if isinstance(s.get("card"), dict) else {"kind": "plain"}
-        if card.get("kind") not in {"repo", "stats", "terminal", "list", "plain"}:
+        if card.get("kind") not in {"repo", "stats", "terminal", "list", "demo", "plain"}:
             card = {"kind": "plain"}
         # The LLM routinely underfills card fields — enforce required values per
         # kind from repo metadata so no card ever renders empty.
@@ -209,12 +209,20 @@ def llm_script(topic: dict, keyword: str, cfg: dict, seed: int) -> dict | None:
             items = [_scrub(i) for i in card.get("items", []) if _scrub(i)]
             card["items"] = items or ["100% free & open source", "No account needed",
                                       "Works fully offline"]
+        elif card["kind"] == "demo":
+            fallback_cmd = f"make a viral video about {topic['name'].split('/')[-1]}"
+            card["cmd"] = _scrub(card.get("cmd") or fallback_cmd)[:64]
         clean.append({
             "gesture": s.get("gesture") if s.get("gesture") in ok_gestures else GESTURE_FLOW[i % len(GESTURE_FLOW)],
             "highlight": _scrub(s.get("highlight") or "")[:40],
             "card": card,
             "text": _scrub(s["text"]),
         })
+    # The demo scene ("Claude Code builds your video") is a signature beat of the
+    # template — guarantee exactly one in the middle even if the LLM skipped it.
+    if len(clean) >= 4 and not any(c["card"].get("kind") == "demo" for c in clean[1:-1]):
+        clean[3]["card"] = {"kind": "demo",
+                            "cmd": f"make a viral video about {topic['name'].split('/')[-1]}"}
     title = _scrub(data.get("title", ""))[:30] or topic["name"].split("/")[-1].upper()
     return {
         "topic_id": topic["id"],

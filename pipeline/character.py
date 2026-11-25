@@ -209,7 +209,60 @@ POSES = {
     "think": pose_think,
 }
 
-MOUTH = {"x": 15.0, "y": 14.6, "w": 2.0, "h": 1.6}  # grid units, top-left origin
+MOUTH = {"x": 14.6, "y": 14.3, "w": 2.8, "h": 1.65}  # grid units, top-left origin
+
+# ---------- mouth shapes: one PNG per rhubarb sound, exactly like the template ----------
+MOUTH_COLORS = {
+    "outline": (36, 31, 28, 255),    # same ink as the body outline
+    "inside": (67, 38, 26, 255),     # open-mouth interior
+    "deep": (40, 20, 13, 255),       # throat / inner shadow
+    "teeth": (250, 248, 240, 255),   # teeth white
+    "tongue": (201, 92, 82, 255),    # tongue
+}
+MOUTH_ORDER = ("A", "B", "C", "D", "E", "F", "G", "H", "X")
+
+
+def mouth_image(shape: str, w: int, h: int) -> Image.Image:
+    """One pixel-art mouth per rhubarb shape, drawn to the manifest mouth box."""
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    O = MOUTH_COLORS["outline"]; IN = MOUTH_COLORS["inside"]
+    DP = MOUTH_COLORS["deep"]; TE = MOUTH_COLORS["teeth"]; TO = MOUTH_COLORS["tongue"]
+
+    def box(a, b, c, e):  # fractional box -> pixel coords
+        return (int(a * w), int(b * h), int(c * w) - 1, int(e * h) - 1)
+
+    if shape == "X":    # silence: soft closed line
+        d.rounded_rectangle(box(0.16, 0.42, 0.84, 0.58), radius=max(h // 7, 2), fill=O)
+    elif shape == "A":  # big open (AH)
+        d.ellipse(box(0.02, 0.00, 0.98, 1.00), fill=IN, outline=O, width=3)
+        d.ellipse(box(0.30, 0.08, 0.70, 0.26), fill=DP)
+        d.ellipse(box(0.26, 0.60, 0.74, 0.96), fill=TO)
+    elif shape == "B":  # mid open (EH)
+        d.ellipse(box(0.08, 0.10, 0.92, 0.90), fill=IN, outline=O, width=3)
+        d.ellipse(box(0.34, 0.62, 0.66, 0.88), fill=TO)
+    elif shape == "C":  # slightly open, wide (consonants)
+        d.rounded_rectangle(box(0.04, 0.34, 0.96, 0.70), radius=max(h // 4, 2),
+                            fill=IN, outline=O, width=2)
+    elif shape == "D":  # jaw drop (OH)
+        d.rounded_rectangle(box(0.04, 0.00, 0.96, 1.00), radius=max(h // 3, 3),
+                            fill=IN, outline=O, width=3)
+        d.ellipse(box(0.30, 0.64, 0.70, 0.96), fill=TO)
+    elif shape == "E":  # top teeth showing
+        d.rounded_rectangle(box(0.04, 0.26, 0.96, 0.76), radius=max(h // 5, 2),
+                            fill=IN, outline=O, width=3)
+        d.rectangle(box(0.09, 0.29, 0.91, 0.45), fill=TE)
+    elif shape == "F":  # pucker (OO/W)
+        d.ellipse(box(0.24, 0.04, 0.76, 0.96), fill=IN, outline=O, width=3)
+        d.ellipse(box(0.38, 0.28, 0.62, 0.72), fill=DP)
+    elif shape == "G":  # teeth pressed (F/V)
+        d.rounded_rectangle(box(0.06, 0.30, 0.94, 0.72), radius=max(h // 6, 2),
+                            fill=TE, outline=O, width=3)
+        d.rectangle(box(0.10, 0.47, 0.90, 0.56), fill=O)
+    else:               # H: relaxed half open with tongue
+        d.ellipse(box(0.06, 0.12, 0.94, 0.88), fill=IN, outline=O, width=3)
+        d.ellipse(box(0.22, 0.52, 0.78, 0.86), fill=TO)
+    return img
 
 
 def main() -> None:
@@ -230,11 +283,19 @@ def main() -> None:
         img.save(path)
         manifest["poses"][name] = f"{name}.png"
 
-    # contact sheet for inspection (checker background)
+    # --- mouth sprites (one per rhubarb sound; the renderer swaps these) ---
+    mw_px, mh_px = int(MOUTH["w"] * SCALE), int(MOUTH["h"] * SCALE)
+    manifest["mouth_shapes"] = {}
+    for s in MOUTH_ORDER:
+        mouth_image(s, mw_px, mh_px).save(OUT / f"mouth-{s}.png")
+        manifest["mouth_shapes"][s] = f"mouth-{s}.png"
+
+    # contact sheet for inspection (checker background) with a mouth strip below
     sheet_scale = 8
     pad = 8
+    mouth_zoom = 3
     w = (GRID_W * sheet_scale + pad) * len(POSES) + pad
-    h = GRID_H * sheet_scale + 2 * pad
+    h = GRID_H * sheet_scale + mh_px * mouth_zoom + 3 * pad
     sheet = Image.new("RGB", (w, h), (246, 247, 250))
     d = ImageDraw.Draw(sheet)
     for y in range(0, h, 16):
@@ -246,6 +307,10 @@ def main() -> None:
         auto_outline(g)
         spr = to_image(g, sheet_scale)
         sheet.paste(spr, (pad + i * (GRID_W * sheet_scale + pad), pad), spr)
+    for i, s in enumerate(MOUTH_ORDER):
+        m = mouth_image(s, mw_px, mh_px).resize(
+            (mw_px * mouth_zoom, mh_px * mouth_zoom), Image.NEAREST)
+        sheet.paste(m, (pad + i * (mw_px * mouth_zoom + pad), GRID_H * sheet_scale + 2 * pad), m)
     sheet.save(OUT / "sheet.png")
 
     (OUT / "character.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")

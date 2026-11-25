@@ -9,10 +9,10 @@
     "h": 720
   },
   "mouth": {
-    "x": 15.0,
-    "y": 14.6,
-    "w": 2.0,
-    "h": 1.6
+    "x": 14.6,
+    "y": 14.3,
+    "w": 2.8,
+    "h": 1.65
   },
   "poses": {
     "idle": "idle.png",
@@ -22,5 +22,16 @@
     "wave": "wave.png",
     "think": "think.png"
   },
-  "note": "One pixel guy, drawn in code. Reused in every video. Mouth overlaid at render time."
+  "note": "One pixel guy, drawn in code. Reused in every video. Mouth overlaid at render time.",
+  "mouth_shapes": {
+    "A": "mouth-A.png",
+    "B": "mouth-B.png",
+    "C": "mouth-C.png",
+    "D": "mouth-D.png",
+    "E": "mouth-E.png",
+    "F": "mouth-F.png",
+    "G": "mouth-G.png",
+    "H": "mouth-H.png",
+    "X": "mouth-X.png"
+  }
 }
