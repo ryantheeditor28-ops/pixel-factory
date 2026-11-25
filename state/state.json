@@ -17,7 +17,8 @@
     "listicle:sybil-solutions/skill-distill+ThreatDefence/agentic-attack-detections+fxceless/victory-fork",
     "sybil-solutions/skill-distill",
     "ThreatDefence/agentic-attack-detections",
-    "fxceless/victory-fork"
+    "fxceless/victory-fork",
+    "danielwh2/sprite-stacking"
   ],
   "videos": [
     {
@@ -82,6 +83,13 @@
       "source": "fallback",
       "format": "listicle",
       "title": "3 FREE TOOLS"
+    },
+    {
+      "stamp": "20261125-2046",
+      "topic": "danielwh2/sprite-stacking",
+      "source": "llm",
+      "format": "single",
+      "title": "PIXEL MAGIC"
     }
   ]
 }
