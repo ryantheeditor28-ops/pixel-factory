@@ -198,5 +198,33 @@
     ],
     "title": "PORTS GALORE",
     "posted_at": "2026-11-25T22:56:21+00:00"
+  },
+  {
+    "video": "video-20261125-2307.mp4",
+    "platform": "facebook",
+    "post_id": "2150425899174573",
+    "permalink": "https://www.facebook.com/reel/2150425899174573",
+    "keyword": "REPO",
+    "links": [
+      "https://github.com/sous-labs/songe",
+      "https://github.com/olive527/steam-library-manager-windows",
+      "https://github.com/iamajmeena/neonclipping"
+    ],
+    "title": "FREE Tech Trio",
+    "posted_at": "2026-11-25T23:07:45+00:00"
+  },
+  {
+    "video": "video-20261125-2307.mp4",
+    "platform": "instagram",
+    "post_id": "18124432291942399",
+    "permalink": "https://www.instagram.com/reel/DgLrNcmBZiF/",
+    "keyword": "REPO",
+    "links": [
+      "https://github.com/sous-labs/songe",
+      "https://github.com/olive527/steam-library-manager-windows",
+      "https://github.com/iamajmeena/neonclipping"
+    ],
+    "title": "FREE Tech Trio",
+    "posted_at": "2026-11-25T23:09:00+00:00"
   }
 ]

@@ -28,7 +28,11 @@
     "AFK-surf/xnulinux",
     "Umbra9179/clipboard-history-manager-windows",
     "qianyiai/kurocat",
-    "ubiquitarianism/leonida"
+    "ubiquitarianism/leonida",
+    "listicle:sous-labs/songe+olive527/steam-library-manager-windows+iamajmeena/neonclipping",
+    "sous-labs/songe",
+    "olive527/steam-library-manager-windows",
+    "iamajmeena/neonclipping"
   ],
   "videos": [
     {
@@ -128,6 +132,13 @@
       "source": "llm",
       "format": "single",
       "title": "PORTS GALORE"
+    },
+    {
+      "stamp": "20261125-2307",
+      "topic": "listicle:sous-labs/songe+olive527/steam-library-manager-windows+iamajmeena/neonclipping",
+      "source": "llm",
+      "format": "listicle",
+      "title": "FREE Tech Trio"
     }
   ]
 }
