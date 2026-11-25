@@ -377,7 +377,13 @@ def _scene_html(idx: int, scene: dict, tl_data: dict, lead: float) -> str:
                    f"width:{mw/gw*100:.2f}%;height:{mh/gh*100:.2f}%;")
     card_html = _card_html(scene.get("card", {"kind": "plain"}), uid)
     if not card_html:  # plain: big accent word chip fills the card zone
-        word = _plain_word(scene, tl_data["_titles"][idx - 1] if "_titles" in tl_data else "")
+        kw = str(tl_data.get("comment_keyword") or "").strip()
+        if kw and kw.lower() in str(scene.get("text") or "").lower():
+            # comment-gate scene: the chip IS the keyword — never a text heuristic
+            # (longest-word once rendered "COMMENTS" over a WRANGLE gate)
+            word = kw.upper()
+        else:
+            word = _plain_word(scene, tl_data["_titles"][idx - 1] if "_titles" in tl_data else "")
         card_html = (f'<div id="{uid}-card" class="clip hf-card" data-start="__CARDSTART__" data-duration="__CDUR__">\n'
                      f'  <div class="cw-chip"><div class="cw-chipword">{_esc(word)}</div>'
                      f'<div class="cw-chipbar"></div></div>\n'
@@ -670,17 +676,23 @@ def generate(timeline: dict, build_dir: Path) -> Path:
     # the claim ("NUMBER 2" / "COMMENT REPO") like the winner reel — the tool name
     # already lives big inside the card, and repo names would truncate mid-word.
     titles = [tl_data["title"]]
+    kw = str(tl_data.get("comment_keyword") or "").strip()
     for sc in tl_data["scenes"][1:]:
         card = sc.get("card") or {}
         kind = card.get("kind")
+        # comment-gate detection by content (works for both formats: listicle's
+        # "comment" card and the single format's plain-card CTA): the spoken text
+        # asks for the keyword, so title + accent are pinned to it — never the
+        # LLM's own word choice (it once rendered "COMMENT COMMENTS" over WRANGLE)
+        is_gate = bool(kw) and kw.lower() in str(sc.get("text") or "").lower()
         if kind == "tool":
             punch = f"NUMBER {card.get('n', '')}"
             if not (sc.get("highlight") or "").strip():
                 sc["highlight"] = f"number {card.get('n', '')}"
-        elif kind == "comment":
-            punch = f"COMMENT {tl_data['comment_keyword']}"
+        elif kind == "comment" or is_gate:
+            punch = f"COMMENT {kw or 'REPO'}"
             if not (sc.get("highlight") or "").strip():
-                sc["highlight"] = tl_data["comment_keyword"]
+                sc["highlight"] = kw
         else:
             words = " ".join(w["text"] for w in sc.get("words", [])[:4])
             punch = (sc.get("highlight") or words).upper()

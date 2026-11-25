@@ -414,6 +414,10 @@ def llm_script(topic: dict, keyword: str, cfg: dict, seed: int) -> dict | None:
     if len(clean) >= 4 and not any(c["card"].get("kind") == "demo" for c in clean[1:-1]):
         clean[3]["card"] = {"kind": "demo",
                             "cmd": f"make a viral video about {topic['name'].split('/')[-1]}"}
+    # Pin the CTA accent to the configured keyword — the LLM once highlighted
+    # "comment comments" over a WRANGLE gate, which the chip then rendered.
+    if clean and keyword and keyword.lower() in clean[-1]["text"].lower():
+        clean[-1]["highlight"] = keyword
     title = _scrub(data.get("title", ""))[:30] or topic["name"].split("/")[-1].upper()
     return {
         "topic_id": topic["id"],
