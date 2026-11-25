@@ -18,7 +18,11 @@
     "sybil-solutions/skill-distill",
     "ThreatDefence/agentic-attack-detections",
     "fxceless/victory-fork",
-    "danielwh2/sprite-stacking"
+    "danielwh2/sprite-stacking",
+    "listicle:4lwayz/portwatch-vi+xikhar/papercraft+R0Y00/Xbox2Windows",
+    "4lwayz/portwatch-vi",
+    "xikhar/papercraft",
+    "R0Y00/Xbox2Windows"
   ],
   "videos": [
     {
@@ -90,6 +94,13 @@
       "source": "llm",
       "format": "single",
       "title": "PIXEL MAGIC"
+    },
+    {
+      "stamp": "20261125-2141",
+      "topic": "listicle:4lwayz/portwatch-vi+xikhar/papercraft+R0Y00/Xbox2Windows",
+      "source": "llm",
+      "format": "listicle",
+      "title": "FREE REPO POWER"
     }
   ]
 }
