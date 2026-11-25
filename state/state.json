@@ -1,6 +1,7 @@
 {
   "used_topics": [
-    "Marvisak/VIctory"
+    "Marvisak/VIctory",
+    "Zettrox/ztrx"
   ],
   "videos": [
     {
@@ -8,6 +9,12 @@
       "topic": "Marvisak/VIctory",
       "source": "llm",
       "title": "GTA VI on PC"
+    },
+    {
+      "stamp": "20261125-1426",
+      "topic": "Zettrox/ztrx",
+      "source": "fallback",
+      "title": "ZTRX"
     }
   ]
 }
