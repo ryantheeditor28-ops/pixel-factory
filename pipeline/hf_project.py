@@ -10,7 +10,9 @@ Writes build/video/ as a complete HyperFrames composition:
 
 Layout (1080x1920) follows the vertical safe-zone spec: brand logo 52-156px,
 kicker 190px, title from 285px, card from 700px, captions 1136-1278px, character
-below 1276px. Scene 1 shows the title/kicker/guy on FRAME 0 (the thumbnail);
+below 1276px; the character is a chest-to-head CLOSE-UP (1.75x sprite scale,
+frame cuts at mid-chest, y 1168-1920) matching the reference's presenter framing.
+Scene 1 shows the title/kicker/guy on FRAME 0 (the thumbnail);
 scenes tile the full timeline with no blank gaps; the mouth is a stack of
 per-sound PNGs swapped on rhubarb cues (image mouths, template-style). Entrances
 follow the reference-measured motion language (family-2 stack promo, frame-tracked:
@@ -286,7 +288,7 @@ SCENE_CSS = """
   .phrase { position:absolute; left:0; right:0; top:0; }
   .caps-l1 { display:block; font:900 80px/1.02 'Inter'; color:__ACCENT__; letter-spacing:-1px; }
   .caps-l2 { display:block; margin-top:10px; font:800 60px/1.06 'Inter'; color:#10131a; }
-  #__UID__-guy { position:absolute; bottom:12px; left:calc(50% - 249px); width:498px; height:560px; }
+  #__UID__-guy { position:absolute; top:1260px; left:calc(50% - 560px); width:1120px; height:1260px; }
   #__UID__-body { position:absolute; inset:0; }
   #__UID__-body .pose { position:absolute; left:0; top:0; width:100%; height:100%;
     opacity:0; image-rendering:auto; }
