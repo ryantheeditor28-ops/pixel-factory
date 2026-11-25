@@ -2,7 +2,8 @@
   "used_topics": [
     "Marvisak/VIctory",
     "Zettrox/ztrx",
-    "daily-drops"
+    "daily-drops",
+    "crhywun/g1-acq"
   ],
   "videos": [
     {
@@ -22,6 +23,12 @@
       "topic": "daily-drops",
       "source": "fallback",
       "title": "3 FREE AI TOOLS"
+    },
+    {
+      "stamp": "20261125-1542",
+      "topic": "crhywun/g1-acq",
+      "source": "llm",
+      "title": "AI Data Capture"
     }
   ]
 }
