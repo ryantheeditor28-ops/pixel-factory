@@ -23,7 +23,11 @@
     "4lwayz/portwatch-vi",
     "xikhar/papercraft",
     "R0Y00/Xbox2Windows",
-    "deterministic-machines/deslop-please"
+    "deterministic-machines/deslop-please",
+    "listicle:AFK-surf/xnulinux+Umbra9179/clipboard-history-manager-windows+qianyiai/kurocat",
+    "AFK-surf/xnulinux",
+    "Umbra9179/clipboard-history-manager-windows",
+    "qianyiai/kurocat"
   ],
   "videos": [
     {
@@ -109,6 +113,13 @@
       "source": "llm",
       "format": "single",
       "title": "Rust Fix"
+    },
+    {
+      "stamp": "20261125-2235",
+      "topic": "listicle:AFK-surf/xnulinux+Umbra9179/clipboard-history-manager-windows+qianyiai/kurocat",
+      "source": "llm",
+      "format": "listicle",
+      "title": "FREE DEV TOOLS"
     }
   ]
 }
