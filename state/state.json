@@ -3,7 +3,8 @@
     "Marvisak/VIctory",
     "Zettrox/ztrx",
     "daily-drops",
-    "crhywun/g1-acq"
+    "crhywun/g1-acq",
+    "xcl-dev/xcl"
   ],
   "videos": [
     {
@@ -29,6 +30,12 @@
       "topic": "crhywun/g1-acq",
       "source": "llm",
       "title": "AI Data Capture"
+    },
+    {
+      "stamp": "20261125-1642",
+      "topic": "xcl-dev/xcl",
+      "source": "llm",
+      "title": "Xbox on Windows"
     }
   ]
 }
