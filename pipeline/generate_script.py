@@ -22,7 +22,7 @@ from llm import ask_json, dump_json, load_json
 BUILD = None  # set by caller
 ROOT = None
 
-GESTURE_FLOW = ["point", "point", "thumbs", "think", "shrug", "thumbs", "wave", "point"]
+GESTURE_FLOW = ["point", "chest", "thumbs", "think", "shrug", "spread", "wave", "point"]
 
 
 def _http_json(url: str, timeout: int = 30):
@@ -218,7 +218,7 @@ Rules:
   repo's fields. Say "Number 1/2/3" out loud. One surprising or concrete detail each.
 - Final segment: CTA with card kind "comment" telling viewers to comment "{keyword}".
 - "highlight" = 1-3 WORDS from that segment's text to accent on screen.
-- "gesture" per segment, one of: point, thumbs, shrug, wave, think.
+- "gesture" per segment, one of: point, chest (hand-on-chest), thumbs, shrug, wave, think, spread (arms wide).
 - Fill every field a kind needs: price (price+zero+label), tool (n+name+stars+desc+lang),
   comment (keyword).
 
@@ -250,7 +250,7 @@ def llm_list_script(topics: list[dict], keyword: str, cfg: dict, seed: int) -> d
     segs = data.get("segments")
     if not isinstance(segs, list) or not (n + 1 <= len(segs) <= n + 3):
         return None
-    ok_gestures = {"point", "thumbs", "shrug", "wave", "think"}
+    ok_gestures = {"point", "chest", "thumbs", "shrug", "wave", "think", "spread"}
     price = _scrub(data.get("price", "") or "") or f"${27 * n + 66}"
     if not price.startswith("$"):
         price = "$" + price.lstrip("$")
@@ -326,7 +326,7 @@ Rules:
 - Final segment: CTA telling viewers to comment "{keyword}" to get the link + follow.
 - Spoken text only in "text" fields: plain words, numbers as words where natural.
 - "highlight" = 1-3 WORDS from that segment's text to accent-color on screen.
-- "gesture" per segment, one of: point, thumbs, shrug, wave, think.
+- "gesture" per segment, one of: point, chest (hand-on-chest), thumbs, shrug, wave, think, spread (arms wide).
 - "card.kind" per segment, one of: repo (segment 1), stats (a big number), terminal (2-3 shell lines), list (2-3 short items), demo (a "Claude Code builds the video" terminal with a progress bar and timeline - use for exactly ONE middle segment), plain.
 - Use "plain" at most once, only for the final CTA. Middle segments prefer stats, terminal, list or demo. Always FILL the fields a kind needs (stats: big+label, terminal: lines, list: items, repo: name+stars+desc+lang, demo: cmd).
 
@@ -369,7 +369,7 @@ def llm_script(topic: dict, keyword: str, cfg: dict, seed: int) -> dict | None:
     if not isinstance(segs, list) or not (3 <= len(segs) <= 7):
         return None
     clean = []
-    ok_gestures = {"point", "thumbs", "shrug", "wave", "think"}
+    ok_gestures = {"point", "chest", "thumbs", "shrug", "wave", "think", "spread"}
     for i, s in enumerate(segs):
         if not isinstance(s, dict) or not isinstance(s.get("text"), str) or len(s["text"].strip()) < 10:
             return None

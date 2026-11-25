@@ -1,28 +1,30 @@
 {
   "grid": {
-    "w": 32,
-    "h": 36
+    "w": 640,
+    "h": 720
   },
-  "scale_px": 20,
   "sprite": {
     "w": 640,
     "h": 720
   },
   "mouth": {
-    "x": 14.6,
-    "y": 14.3,
-    "w": 2.8,
-    "h": 1.65
+    "x": 281,
+    "y": 277,
+    "w": 78,
+    "h": 46
   },
   "poses": {
     "idle": "idle.png",
     "point": "point.png",
+    "chest": "chest.png",
     "thumbs": "thumbs.png",
+    "think": "think.png",
     "shrug": "shrug.png",
-    "wave": "wave.png",
-    "think": "think.png"
+    "spread": "spread.png",
+    "wave": "wave.png"
   },
-  "note": "One pixel guy, drawn in code. Reused in every video. Mouth overlaid at render time.",
+  "style": "sketch-v2 (code-drawn, deterministic wobble; family-2 style-match)",
+  "note": "One sketch guy, drawn in code. Reused in every video. Mouth overlaid at render time.",
   "mouth_shapes": {
     "A": "mouth-A.png",
     "B": "mouth-B.png",

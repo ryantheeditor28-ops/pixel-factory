@@ -289,11 +289,11 @@ SCENE_CSS = """
   #__UID__-guy { position:absolute; bottom:12px; left:calc(50% - 249px); width:498px; height:560px; }
   #__UID__-body { position:absolute; inset:0; }
   #__UID__-body .pose { position:absolute; left:0; top:0; width:100%; height:100%;
-    opacity:0; image-rendering:pixelated; }
-  #__UID__-guy img { width:100%; height:100%; display:block; image-rendering:pixelated; }
+    opacity:0; image-rendering:auto; }
+  #__UID__-guy img { width:100%; height:100%; display:block; image-rendering:auto; }
   #__UID__-mouth { position:absolute; }
   #__UID__-mouth .mshape { position:absolute; left:0; top:0; width:100%; height:100%;
-    opacity:0; image-rendering:pixelated; }
+    opacity:0; image-rendering:auto; }
   .hf-demo { display:flex; flex-direction:column; }
   .cw-term { background:#101423; border-radius:26px; overflow:hidden;
     box-shadow:0 26px 60px rgba(8,12,26,.35); }
@@ -517,7 +517,7 @@ def _scene_html(idx: int, scene: dict, tl_data: dict, lead: float) -> str:
 
     # gestures: hard-cut pose swaps on speech beats (every 2nd phrase start), so the
     # guy changes gestures naturally while talking instead of once per scene.
-    POSE_ORDER = ("idle", "point", "thumbs", "think", "shrug", "wave")
+    POSE_ORDER = ("idle", "point", "chest", "thumbs", "think", "shrug", "spread", "wave")
     pose0 = scene.get("gesture", "idle")
     if pose0 not in POSE_ORDER:
         pose0 = "idle"
@@ -526,7 +526,7 @@ def _scene_html(idx: int, scene: dict, tl_data: dict, lead: float) -> str:
         for p in POSE_ORDER)
     gesture_tl = [f'  tl.set("#{uid}-pose-{pose0}",{{opacity:1}},0);']
     prev_pose = pose0
-    flow = [g for g in ("point", "thumbs", "wave", "think", "shrug") if g != pose0]
+    flow = [g for g in ("point", "chest", "thumbs", "wave", "think", "shrug", "spread") if g != pose0]
     beats = [round(max(phrases[bi]["t0"] + lead, 0.5), 3)
              for bi in range(2, len(phrases), 2)]
     for bi, t in enumerate(beats):

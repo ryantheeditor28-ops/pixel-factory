@@ -1,234 +1,331 @@
-"""The one-and-only pixel guy.
+"""The one-and-only sketch guy (v2 — hand-drawn style, code-drawn).
 
 Drawn entirely in code (no AI credits, no licensed assets) so he is free forever,
-identical in every video, and fully automatable. Produces:
+identical in every video, and fully automatable. Style-matched to the family-2
+sketch reference (hand-drawn look, big head, gesture vocabulary: point-up, shrug,
+wave, hand-on-chest, thinking, arms-spread) with a CHANGED appearance: no cap
+(the ref's signature — deliberately avoided), messy dark hair instead, and our
+brand-blue hoodie. Kid-safe: open hands everywhere, soft round features.
 
-  assets/character/<pose>.png   transparent sprites (idle, point, thumbs, shrug, wave, think)
-  assets/character/character.json   manifest: grid size, mouth anchor (for rhubarb lip sync), poses
+Produces:
+  assets/character/<pose>.png   transparent sprites (idle, point, chest, thumbs,
+                                shrug, wave, think, spread)
+  assets/character/character.json   manifest: canvas size, mouth anchor (for
+                                rhubarb lip sync), pose list
   assets/character/sheet.png    contact sheet for quick visual inspection
 
-The mouth is NOT baked in: the renderer overlays an animated pixel mouth at the
+The mouth is NOT baked in: the renderer overlays an animated mouth at the
 manifest anchor, driven by rhubarb-lip-sync phoneme cues (A-H + X).
 """
 from __future__ import annotations
 
 import json
+import math
+import random
+import zlib
 from pathlib import Path
 
 from PIL import Image, ImageDraw
 
-GRID_W, GRID_H = 32, 36
-SCALE = 20  # px per grid cell -> 640x720 sprite
-
+W, H = 640, 720  # same 32:36 aspect as the layout container (498x560)
 OUT = Path(__file__).resolve().parent.parent / "assets" / "character"
 
-PAL = {
-    "o": (36, 31, 28, 255),     # outline
-    "s": (240, 185, 141, 255),  # skin
-    "S": (217, 154, 108, 255),  # skin shade
-    "h": (51, 37, 31, 255),     # hair
-    "H": (74, 56, 46, 255),     # hair highlight
-    "t": (31, 168, 155, 255),   # hoodie teal
-    "T": (23, 138, 128, 255),   # hoodie shade
-    "d": (245, 242, 234, 255),  # drawstring
-    "j": (61, 79, 119, 255),    # jeans
-    "J": (46, 59, 92, 255),     # jeans shade
-    "w": (236, 233, 226, 255),  # shoe
-    "W": (201, 196, 184, 255),  # sole
-    "e": (36, 31, 28, 255),     # eye
-    "g": (255, 255, 255, 255),  # eye glint
-}
+# sketch palette — warm charcoal ink, no pure black
+INK = (58, 46, 42, 255)
+SKIN = (248, 216, 186, 255)
+SKIN_SH = (233, 193, 158, 255)
+HAIR = (70, 48, 38, 255)
+HAIR_HI = (96, 70, 55, 255)
+HOODIE = (47, 107, 255, 255)      # brand blue
+HOODIE_SH = (36, 84, 205, 255)
+STRING = (250, 248, 242, 255)
+JEANS = (52, 58, 76, 255)
+SHOE = (242, 239, 232, 255)
+SOLE = (205, 200, 190, 255)
+BLUSH = (243, 182, 166, 255)
 
 
-def new_grid() -> list[list[str]]:
-    return [["."] * GRID_W for _ in range(GRID_H)]
+def _mix(c1, c2, t):
+    return tuple(int(a + (b - a) * t) for a, b in zip(c1, c2))
 
 
-def rect(g, r0, r1, c0, c1, ch):
-    for r in range(r0, r1 + 1):
-        for c in range(c0, c1 + 1):
-            if 0 <= r < GRID_H and 0 <= c < GRID_W:
-                g[r][c] = ch
+HATCH_HOODIE = _mix(INK, HOODIE, 0.30)
+HATCH_JEANS = _mix(INK, JEANS, 0.30)
+
+RNG = random.Random(0)
 
 
-def px(g, r, c, ch):
-    g[r][c] = ch
+def _reseed(name: str) -> None:
+    """Deterministic wobble per pose — the sheet matches the saved sprites."""
+    RNG.seed(zlib.crc32(name.encode()) ^ 0xA11CE)
 
 
-def hline(g, r, c0, c1, ch):
-    rect(g, r, r, c0, c1, ch)
+def _j(p, amt=2.5):
+    return (p[0] + RNG.uniform(-amt, amt), p[1] + RNG.uniform(-amt, amt))
 
 
-def base() -> list[list[str]]:
-    g = new_grid()
-    # --- hair (rounded top, tuft, messy fringe dips) ---
-    rect(g, 2, 9, 9, 23, "h")
-    hline(g, 1, 11, 20, "h")          # rounded crown
-    px(g, 0, 14, "h"); px(g, 0, 15, "h")  # tuft
-    for c in range(9, 24):
-        if c % 3 != 1:
-            px(g, 10, c, "h")
-    px(g, 3, 12, "H"); px(g, 4, 19, "H"); px(g, 6, 10, "H"); px(g, 7, 21, "H")
-    # --- face ---
-    rect(g, 10, 16, 10, 22, "s")
-    # ears
-    rect(g, 11, 13, 8, 9, "s"); rect(g, 11, 13, 22, 23, "s")
-    px(g, 12, 8, "S"); px(g, 12, 23, "S")
-    # brows + eyes (2x2 each, glint top-right)
-    rect(g, 11, 11, 12, 14, "h"); rect(g, 11, 11, 17, 19, "h")
-    rect(g, 12, 13, 12, 13, "e"); rect(g, 12, 13, 18, 19, "e")
-    px(g, 12, 13, "g"); px(g, 12, 19, "g")
-    # nose + closed-mouth fallback line (the renderer's mouth overlays here)
-    px(g, 14, 16, "S")
-    rect(g, 15, 15, 15, 16, "S")
-    # --- hood bunch behind neck ---
-    rect(g, 16, 17, 11, 21, "T")
-    # --- torso (teal hoodie) ---
-    rect(g, 16, 25, 10, 21, "t")
-    rect(g, 16, 17, 9, 9, "t"); rect(g, 16, 17, 22, 22, "t")  # shoulder caps
-    # kangaroo pocket
-    rect(g, 22, 24, 12, 19, "T")
-    hline(g, 22, 12, 19, "o")
-    # drawstrings
-    px(g, 18, 13, "d"); px(g, 19, 13, "d"); px(g, 18, 18, "d"); px(g, 19, 18, "d")
-    # --- waist + legs ---
-    rect(g, 26, 26, 10, 21, "j")
-    rect(g, 27, 30, 10, 14, "j"); rect(g, 27, 30, 17, 21, "j")
-    hline(g, 27, 10, 21, "J")
-    for r in range(27, 31):
-        px(g, r, 14, "J"); px(g, r, 17, "J")
-    # --- shoes ---
-    rect(g, 31, 32, 9, 15, "w"); rect(g, 31, 32, 17, 23, "w")
-    hline(g, 33, 9, 15, "W"); hline(g, 33, 17, 23, "W")
-    return g
+def _sketch_poly(d, pts, fill, outline=INK, width=6, amt=2.5):
+    jp = [_j(p, amt) for p in pts]
+    if fill is not None:
+        d.polygon(jp, fill=fill)
+    d.line(jp + [jp[0]], fill=outline, width=width, joint="curve")
 
 
-# ---------- arms (overlays) ----------
-def arm_left_idle(g):
-    rect(g, 16, 22, 8, 9, "t"); rect(g, 23, 24, 8, 9, "s")
+def _sketch_ellipse(d, cx, cy, rx, ry, fill, outline=INK, width=6, amt=2.5, n=48):
+    pts = []
+    for i in range(n):
+        a = 2 * math.pi * i / n
+        pts.append((cx + math.cos(a) * (rx + RNG.uniform(-amt, amt)),
+                    cy + math.sin(a) * (ry + RNG.uniform(-amt, amt))))
+    if fill is not None:
+        d.polygon(pts, fill=fill)
+    d.line(pts + [pts[0]], fill=outline, width=width, joint="curve")
 
 
-def arm_right_idle(g):
-    rect(g, 16, 22, 22, 23, "t"); rect(g, 23, 24, 22, 23, "s")
+def _limb(d, p0, p1, w0, w1, fill):
+    """Tapered sleeve with hand-drawn wobble + ink outline."""
+    dx, dy = p1[0] - p0[0], p1[1] - p0[1]
+    ln = math.hypot(dx, dy) or 1.0
+    nx, ny = -dy / ln, dx / ln
+    pts = [(p0[0] + nx * w0, p0[1] + ny * w0), (p1[0] + nx * w1, p1[1] + ny * w1),
+           (p1[0] - nx * w1, p1[1] - ny * w1), (p0[0] - nx * w0, p0[1] - ny * w0)]
+    _sketch_poly(d, pts, fill, width=5, amt=2.0)
+    # cuff line at the wrist
+    cx, cy = (p1[0] + nx * w1 * 0.7, p1[1] + ny * w1 * 0.7)
+    d.line([_j((cx - nx * 12, cy - ny * 12), 1.5), _j((cx + nx * 12, cy + ny * 12), 1.5)],
+           fill=INK, width=4)
+
+
+def _hand(d, cx, cy, r=26, spread=False, fingers=True):
+    """Skin hand with ink outline; optionally an open hand with spread fingers
+    (kid-safe: never a lone raised finger)."""
+    if fingers and spread:
+        for ang in (-64, -32, 0, 26):
+            a = math.radians(ang - 90)
+            x0, y0 = cx + math.cos(a) * r * 0.55, cy + math.sin(a) * r * 0.55
+            x1, y1 = cx + math.cos(a) * (r + 20), cy + math.sin(a) * (r + 20)
+            d.line([(x0, y0), (x1, y1)], fill=INK, width=15)
+            d.line([(x0, y0), (x1, y1)], fill=SKIN, width=9)
+    _sketch_ellipse(d, cx, cy, r, r * 0.92, SKIN, width=5, amt=1.5, n=28)
+
+
+def _hatch(d, x, y, n, ang_deg, ln=26, color=INK, width=3, gap=9):
+    a = math.radians(ang_deg)
+    for i in range(n):
+        ox, oy = x + math.cos(a + math.pi / 2) * gap * i, y + math.sin(a + math.pi / 2) * gap * i
+        d.line([(ox, oy), (ox + math.cos(a) * ln, oy + math.sin(a) * ln)],
+               fill=color, width=width)
+
+
+# ---------- body parts (shared by every pose) ----------
+
+def _shadow(img):
+    ov = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    ImageDraw.Draw(ov).ellipse([180, 668, 460, 706], fill=(40, 34, 30, 46))
+    img.alpha_composite(ov)
+
+
+def _legs(d):
+    for x0, x1 in ((252, 302), (338, 388)):
+        _sketch_poly(d, [(x0, 545), (x1, 545), (x1 - 4, 655), (x0 + 4, 655)],
+                     JEANS, width=5, amt=2.0)
+    _hatch(d, 262, 560, 3, -55, color=HATCH_JEANS)
+    _hatch(d, 348, 560, 3, -55, color=HATCH_JEANS)
+    for x0, x1 in ((238, 312), (328, 402)):
+        _sketch_poly(d, [(x0, 652), (x1, 652), (x1 - 6, 696), (x0 + 6, 696)],
+                     SHOE, width=5, amt=1.5)
+        d.line([_j((x0 + 8, 684), 1.5), _j((x1 - 8, 684), 1.5)], fill=SOLE, width=5)
+
+
+def _torso(d):
+    _sketch_poly(d, [(218, 360), (422, 360), (444, 552), (196, 552)],
+                 HOODIE, width=6, amt=2.5)
+    # kangaroo pocket + drawstrings + hatching
+    _sketch_poly(d, [(272, 470), (368, 470), (382, 545), (258, 545)],
+                 HOODIE_SH, width=4, amt=2.0)
+    for x0, x1 in (((300, 382), (292, 420)), ((340, 382), (348, 420))):
+        d.line([_j(x0, 1.5), _j(x1, 1.5)], fill=STRING, width=5)
+        d.ellipse([x1[0] - 5, x1[1] - 3, x1[0] + 5, x1[1] + 7], fill=STRING)
+    _hatch(d, 214, 420, 4, -50, color=HATCH_HOODIE)
+
+
+def _collar(d):
+    _sketch_ellipse(d, 320, 350, 54, 30, HOODIE_SH, width=5, amt=2.0)
+
+
+def _head(d):
+    # ears first (peek out), then head, hair, face
+    _sketch_ellipse(d, 173, 218, 20, 26, SKIN, width=5, amt=1.5, n=30)
+    _sketch_ellipse(d, 467, 218, 20, 26, SKIN, width=5, amt=1.5, n=30)
+    _sketch_ellipse(d, 320, 208, 148, 132, SKIN, width=6, amt=2.5)
+    # messy hair (no cap — deliberately different from the ref's orange cap)
+    for cx, cy, rx, ry in ((320, 118, 132, 62), (225, 150, 55, 42), (415, 150, 55, 42),
+                           (320, 162, 95, 40), (180, 205, 26, 38), (460, 205, 26, 38)):
+        _sketch_ellipse(d, cx, cy, rx, ry, HAIR, width=5, amt=3.0, n=36)
+    _hatch(d, 250, 96, 3, -35, color=HAIR_HI, width=4)
+    # stray strands
+    for x0, y0, x1, y1 in ((262, 66, 244, 26), (320, 52, 318, 12), (376, 66, 394, 28)):
+        d.line([_j((x0, y0), 2), _j((x1, y1), 2)], fill=INK, width=4)
+    # face
+    d.line([_j((240, 182), 1.5), _j((288, 176), 1.5)], fill=INK, width=7)
+    d.line([_j((352, 176), 1.5), _j((400, 182), 1.5)], fill=INK, width=7)
+    for ex in (264, 376):
+        d.ellipse([ex - 15, 196, ex + 15, 236], fill=INK)
+        d.ellipse([ex - 6, 202, ex + 4, 212], fill=(255, 255, 255, 255))
+    d.line([_j((310, 256), 1.5), _j((320, 266), 1.5), _j((330, 256), 1.5)],
+           fill=INK, width=4, joint="curve")
+    for bx in (232, 408):
+        _sketch_ellipse(d, bx, 258, 22, 12, BLUSH, outline=None, width=0, amt=2.0, n=24)
+
+
+# ---------- poses (arm choreography only; body/head shared) ----------
+
+def _render(name, arms, hands, extras=None):
+    _reseed(name)
+    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    _shadow(img)
+    d = ImageDraw.Draw(img)
+    _legs(d)
+    _torso(d)
+    _collar(d)
+    arms(d)
+    _head(d)
+    for h in hands:
+        h(d)
+    if extras:
+        extras(d)
+    return img
+
+
+def _arms_idle(d):
+    _limb(d, (240, 375), (226, 492), 17, 13, HOODIE)
+    _limb(d, (400, 375), (414, 492), 17, 13, HOODIE)
 
 
 def pose_idle():
-    g = base(); arm_left_idle(g); arm_right_idle(g); return g
+    return _render("idle", _arms_idle,
+                   [lambda d: _hand(d, 224, 512), lambda d: _hand(d, 416, 512)])
 
 
 def pose_point():
-    g = base(); arm_left_idle(g)
-    rect(g, 16, 17, 22, 24, "t")   # shoulder connect
-    sleeve = [(15, 24), (15, 25), (14, 25), (14, 26), (13, 26), (13, 27),
-              (12, 27), (12, 28), (11, 28), (10, 28), (10, 29)]
-    for r, c in sleeve:
-        px(g, r, c, "t")
-    # open raised hand — spread fingers, never a lone finger (a single raised
-    # finger read as a middle finger in the reels; kid-safe fix)
-    rect(g, 7, 9, 26, 29, "s")    # palm
-    rect(g, 4, 6, 26, 26, "s")    # finger (pinky side)
-    rect(g, 3, 6, 28, 28, "s")    # finger (middle, tallest)
-    rect(g, 4, 6, 30, 30, "s")    # finger (index side)
-    px(g, 8, 30, "s"); px(g, 7, 31, "s")  # thumb nub
-    px(g, 9, 27, "S")             # palm shade
-    return g
+    def arms(d):
+        _limb(d, (240, 375), (226, 492), 17, 13, HOODIE)
+        _limb(d, (400, 375), (468, 190), 17, 12, HOODIE)
 
+    def hand(d):
+        _hand(d, 478, 156, r=27, spread=True, fingers=True)
+        _sketch_ellipse(d, 452, 172, 9, 7, SKIN, width=4, amt=1.0, n=20)  # thumb nub
 
-def pose_thumbs():
-    g = base(); arm_left_idle(g)
-    rect(g, 17, 18, 22, 24, "t")   # upper arm out (horizontal)
-    rect(g, 16, 19, 24, 25, "t")   # forearm vertical up
-    rect(g, 14, 16, 23, 25, "s")   # fist at shoulder height (3x3)
-    rect(g, 11, 13, 24, 24, "s")   # thumb up above fist
-    px(g, 15, 24, "S")             # knuckle shade
-    return g
+    return _render("point", arms, [hand])
 
 
 def pose_shrug():
-    g = base()
-    for r, c in [(16, 8), (16, 9), (17, 7), (17, 8), (18, 6), (18, 7)]:
-        px(g, r, c, "t")
-    rect(g, 17, 18, 4, 6, "s")     # left palm up
-    for r, c in [(16, 22), (16, 23), (17, 23), (17, 24), (18, 24), (18, 25)]:
-        px(g, r, c, "t")
-    rect(g, 17, 18, 25, 27, "s")   # right palm up
-    return g
+    def arms(d):
+        for sx, ex in ((240, 148), (400, 492)):
+            _limb(d, (sx, 380), (ex, 336), 16, 12, HOODIE)
+        _sketch_ellipse(d, 252, 354, 22, 12, HOODIE, width=4, amt=1.5, n=22)
+        _sketch_ellipse(d, 388, 354, 22, 12, HOODIE, width=4, amt=1.5, n=22)
+
+    def hands(d):
+        _sketch_ellipse(d, 130, 320, 26, 19, SKIN, width=5, amt=1.5, n=28)
+        _sketch_ellipse(d, 510, 320, 26, 19, SKIN, width=5, amt=1.5, n=28)
+
+    return _render("shrug", arms, [hands])
 
 
 def pose_wave():
-    g = base(); arm_left_idle(g)
-    sleeve = [(16, 23), (16, 24), (15, 24), (15, 25), (14, 25), (14, 26),
-              (13, 26), (13, 27), (12, 27), (12, 28), (11, 28)]
-    for r, c in sleeve:
-        px(g, r, c, "t")
-    rect(g, 6, 9, 26, 28, "s")     # open palm
-    px(g, 6, 27, "."); px(g, 7, 28, ".")  # finger notches
-    return g
+    def arms(d):
+        _limb(d, (240, 375), (226, 492), 17, 13, HOODIE)
+        _limb(d, (400, 375), (458, 205), 17, 12, HOODIE)
+
+    def hand(d):
+        _hand(d, 470, 172, r=27, spread=True, fingers=True)
+
+    def extras(d):
+        for i, (x, y) in enumerate(((416, 148), (402, 184))):
+            d.arc([x, y, x + 26, y + 30], start=300 - i * 20, end=360 - i * 20,
+                  fill=INK, width=3)
+
+    return _render("wave", arms, [hand], extras)
 
 
 def pose_think():
-    g = base(); arm_left_idle(g)
-    for r, c in [(16, 23), (17, 24), (18, 24), (19, 25), (18, 25), (17, 25),
-                 (16, 25), (15, 25)]:
-        px(g, r, c, "t")
-    rect(g, 12, 14, 23, 24, "s")   # hand beside face
-    rect(g, 14, 15, 22, 22, "s")   # touching the chin/cheek edge
-    px(g, 13, 22, "s")             # index on cheek
-    px(g, 13, 24, "S")             # hand shade
-    return g
+    def arms(d):
+        _limb(d, (240, 375), (226, 492), 17, 13, HOODIE)
+        _limb(d, (400, 375), (392, 318), 16, 11, HOODIE)
+
+    def hand(d):
+        # hand at the CHEEK (hmm-pose) — clear of the mouth overlay box
+        _sketch_ellipse(d, 396, 292, 22, 19, SKIN, width=5, amt=1.5, n=28)
+        d.line([_j((392, 280), 1.0), _j((380, 262), 1.0)], fill=INK, width=13)
+        d.line([_j((392, 280), 1.0), _j((380, 262), 1.0)], fill=SKIN, width=8)
+
+    return _render("think", arms, [hand])
 
 
-def auto_outline(g):
-    """1px dark contour: every transparent cell touching a filled cell."""
-    filled = [[g[r][c] != "." for c in range(GRID_W)] for r in range(GRID_H)]
-    for r in range(GRID_H):
-        for c in range(GRID_W):
-            if filled[r][c]:
-                continue
-            for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-                rr, cc = r + dr, c + dc
-                if 0 <= rr < GRID_H and 0 <= cc < GRID_W and filled[rr][cc]:
-                    g[r][c] = "o"
-                    break
+def pose_chest():
+    def arms(d):
+        _limb(d, (240, 375), (226, 492), 17, 13, HOODIE)
+        _limb(d, (400, 375), (348, 424), 16, 12, HOODIE)
+
+    def hand(d):
+        _sketch_ellipse(d, 334, 434, 27, 19, SKIN, width=5, amt=1.5, n=28)
+
+    return _render("chest", arms, [hand])
 
 
-def to_image(g, scale: int) -> Image.Image:
-    img = Image.new("RGBA", (GRID_W * scale, GRID_H * scale), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    for r in range(GRID_H):
-        for c in range(GRID_W):
-            ch = g[r][c]
-            if ch == ".":
-                continue
-            d.rectangle([c * scale, r * scale, (c + 1) * scale - 1, (r + 1) * scale - 1],
-                        fill=PAL[ch])
-    return img
+def pose_thumbs():
+    def arms(d):
+        _limb(d, (240, 375), (226, 492), 17, 13, HOODIE)
+        _limb(d, (400, 380), (418, 288), 17, 13, HOODIE)
+
+    def hand(d):
+        _sketch_ellipse(d, 422, 264, 24, 21, SKIN, width=5, amt=1.5, n=28)
+        # thumb up: sketched stub (ink edge + skin fill), no cuff line
+        d.line([_j((424, 252), 1.0), _j((428, 216), 1.0)], fill=INK, width=15)
+        d.line([_j((424, 252), 1.0), _j((428, 216), 1.0)], fill=SKIN, width=9)
+
+    return _render("thumbs", arms, [hand])
+
+
+def pose_spread():
+    def arms(d):
+        _limb(d, (240, 378), (122, 352), 17, 12, HOODIE)
+        _limb(d, (400, 378), (518, 352), 17, 12, HOODIE)
+
+    def hands(d):
+        _hand(d, 104, 346, r=24)
+        _hand(d, 536, 346, r=24)
+
+    return _render("spread", arms, [hands])
 
 
 POSES = {
     "idle": pose_idle,
     "point": pose_point,
+    "chest": pose_chest,
     "thumbs": pose_thumbs,
-    "shrug": pose_shrug,
-    "wave": pose_wave,
     "think": pose_think,
+    "shrug": pose_shrug,
+    "spread": pose_spread,
+    "wave": pose_wave,
 }
 
-MOUTH = {"x": 14.6, "y": 14.3, "w": 2.8, "h": 1.65}  # grid units, top-left origin
+MOUTH = {"x": 281, "y": 277, "w": 78, "h": 46}  # canvas px, top-left origin
 
 # ---------- mouth shapes: one PNG per rhubarb sound, exactly like the template ----------
 MOUTH_COLORS = {
-    "outline": (36, 31, 28, 255),    # same ink as the body outline
-    "inside": (67, 38, 26, 255),     # open-mouth interior
-    "deep": (40, 20, 13, 255),       # throat / inner shadow
-    "teeth": (250, 248, 240, 255),   # teeth white
-    "tongue": (201, 92, 82, 255),    # tongue
+    "outline": INK,
+    "inside": (67, 38, 26, 255),
+    "deep": (40, 20, 13, 255),
+    "teeth": (250, 248, 240, 255),
+    "tongue": (201, 92, 82, 255),
 }
 MOUTH_ORDER = ("A", "B", "C", "D", "E", "F", "G", "H", "X")
 
 
 def mouth_image(shape: str, w: int, h: int) -> Image.Image:
-    """One pixel-art mouth per rhubarb shape, drawn to the manifest mouth box."""
+    """One mouth per rhubarb shape, drawn to the manifest mouth box."""
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
     O = MOUTH_COLORS["outline"]; IN = MOUTH_COLORS["inside"]
@@ -273,34 +370,32 @@ def mouth_image(shape: str, w: int, h: int) -> Image.Image:
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     manifest = {
-        "grid": {"w": GRID_W, "h": GRID_H},
-        "scale_px": SCALE,
-        "sprite": {"w": GRID_W * SCALE, "h": GRID_H * SCALE},
+        "grid": {"w": W, "h": H},
+        "sprite": {"w": W, "h": H},
         "mouth": MOUTH,
         "poses": {},
-        "note": "One pixel guy, drawn in code. Reused in every video. Mouth overlaid at render time.",
+        "style": "sketch-v2 (code-drawn, deterministic wobble; family-2 style-match)",
+        "note": "One sketch guy, drawn in code. Reused in every video. Mouth overlaid at render time.",
     }
     for name, fn in POSES.items():
-        g = fn()
-        auto_outline(g)
-        img = to_image(g, SCALE)
-        path = OUT / f"{name}.png"
-        img.save(path)
+        img = fn()
+        img.save(OUT / f"{name}.png")
         manifest["poses"][name] = f"{name}.png"
 
     # --- mouth sprites (one per rhubarb sound; the renderer swaps these) ---
-    mw_px, mh_px = int(MOUTH["w"] * SCALE), int(MOUTH["h"] * SCALE)
+    mw_px, mh_px = MOUTH["w"], MOUTH["h"]
     manifest["mouth_shapes"] = {}
     for s in MOUTH_ORDER:
         mouth_image(s, mw_px, mh_px).save(OUT / f"mouth-{s}.png")
         manifest["mouth_shapes"][s] = f"mouth-{s}.png"
 
     # contact sheet for inspection (checker background) with a mouth strip below
-    sheet_scale = 8
-    pad = 8
-    mouth_zoom = 3
-    w = (GRID_W * sheet_scale + pad) * len(POSES) + pad
-    h = GRID_H * sheet_scale + mh_px * mouth_zoom + 3 * pad
+    pad = 10
+    thumb_h = 240
+    thumb_w = int(W * thumb_h / H)
+    mouth_zoom = 2
+    w = (thumb_w + pad) * len(POSES) + pad
+    h = thumb_h + mh_px * mouth_zoom + 3 * pad
     sheet = Image.new("RGB", (w, h), (246, 247, 250))
     d = ImageDraw.Draw(sheet)
     for y in range(0, h, 16):
@@ -308,20 +403,18 @@ def main() -> None:
             if (x // 16 + y // 16) % 2 == 0:
                 d.rectangle([x, y, x + 15, y + 15], fill=(232, 235, 240))
     for i, name in enumerate(POSES):
-        g = POSES[name]()
-        auto_outline(g)
-        spr = to_image(g, sheet_scale)
-        sheet.paste(spr, (pad + i * (GRID_W * sheet_scale + pad), pad), spr)
+        spr = POSES[name]().resize((thumb_w, thumb_h), Image.LANCZOS)
+        sheet.paste(spr, (pad + i * (thumb_w + pad), pad), spr)
     for i, s in enumerate(MOUTH_ORDER):
         m = mouth_image(s, mw_px, mh_px).resize(
-            (mw_px * mouth_zoom, mh_px * mouth_zoom), Image.NEAREST)
-        sheet.paste(m, (pad + i * (mw_px * mouth_zoom + pad), GRID_H * sheet_scale + 2 * pad), m)
+            (mw_px * mouth_zoom, mh_px * mouth_zoom), Image.LANCZOS)
+        sheet.paste(m, (pad + i * (mw_px * mouth_zoom + pad), thumb_h + 2 * pad), m)
     sheet.save(OUT / "sheet.png")
 
     (OUT / "character.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     print(f"character -> {OUT}")
-    for p in sorted(OUT.iterdir()):
-        print("  ", p.name, p.stat().st_size, "bytes")
+    for p in sorted(OUT.glob("*.png")):
+        print(f"   {p.name} {p.stat().st_size} bytes")
 
 
 if __name__ == "__main__":
