@@ -45,9 +45,26 @@ class PublishError(Exception):
     pass
 
 
+_LOCAL_ENV: dict | None = None
+
+
+def _local_env() -> dict:
+    """Fallback creds from .secrets.local (written by meta_token.py wire) for manual runs."""
+    global _LOCAL_ENV
+    if _LOCAL_ENV is None:
+        _LOCAL_ENV = {}
+        f = ROOT / ".secrets.local"
+        if f.exists():
+            for line in f.read_text(encoding="utf-8").splitlines():
+                if "=" in line and not line.strip().startswith("#"):
+                    k, _, v = line.partition("=")
+                    _LOCAL_ENV[k.strip()] = v.strip()
+    return _LOCAL_ENV
+
+
 def env(name: str) -> str:
     import os
-    return (os.environ.get(name) or "").strip()
+    return (os.environ.get(name) or "").strip() or _local_env().get(name, "")
 
 
 # ---- http with retry ---------------------------------------------------------
