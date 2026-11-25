@@ -13,7 +13,11 @@
     "listicle:erkamyaman/safe-anything+EL4CTEO/fast-anything+INK-Q/agy-fast",
     "erkamyaman/safe-anything",
     "EL4CTEO/fast-anything",
-    "INK-Q/agy-fast"
+    "INK-Q/agy-fast",
+    "listicle:sybil-solutions/skill-distill+ThreatDefence/agentic-attack-detections+fxceless/victory-fork",
+    "sybil-solutions/skill-distill",
+    "ThreatDefence/agentic-attack-detections",
+    "fxceless/victory-fork"
   ],
   "videos": [
     {
@@ -68,6 +72,13 @@
     {
       "stamp": "20261126-0348",
       "topic": "listicle:erkamyaman/safe-anything+EL4CTEO/fast-anything+INK-Q/agy-fast",
+      "source": "fallback",
+      "format": "listicle",
+      "title": "3 FREE TOOLS"
+    },
+    {
+      "stamp": "20261125-1956",
+      "topic": "listicle:sybil-solutions/skill-distill+ThreatDefence/agentic-attack-detections+fxceless/victory-fork",
       "source": "fallback",
       "format": "listicle",
       "title": "3 FREE TOOLS"
