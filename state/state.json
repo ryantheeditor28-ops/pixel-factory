@@ -22,7 +22,8 @@
     "listicle:4lwayz/portwatch-vi+xikhar/papercraft+R0Y00/Xbox2Windows",
     "4lwayz/portwatch-vi",
     "xikhar/papercraft",
-    "R0Y00/Xbox2Windows"
+    "R0Y00/Xbox2Windows",
+    "deterministic-machines/deslop-please"
   ],
   "videos": [
     {
@@ -101,6 +102,13 @@
       "source": "llm",
       "format": "listicle",
       "title": "FREE REPO POWER"
+    },
+    {
+      "stamp": "20261125-2204",
+      "topic": "deterministic-machines/deslop-please",
+      "source": "llm",
+      "format": "single",
+      "title": "Rust Fix"
     }
   ]
 }

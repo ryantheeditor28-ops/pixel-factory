@@ -122,5 +122,29 @@
     ],
     "title": "FREE REPO POWER",
     "posted_at": "2026-11-25T21:43:00+00:00"
+  },
+  {
+    "video": "video-20261125-2204.mp4",
+    "platform": "facebook",
+    "post_id": "1848892623018980",
+    "permalink": "https://www.facebook.com/reel/1848892623018980",
+    "keyword": "DECODE",
+    "links": [
+      "https://github.com/deterministic-machines/deslop-please"
+    ],
+    "title": "Rust Fix",
+    "posted_at": "2026-11-25T22:05:05+00:00"
+  },
+  {
+    "video": "video-20261125-2204.mp4",
+    "platform": "instagram",
+    "post_id": "18165564826450364",
+    "permalink": "https://www.instagram.com/reel/DgLj9cjB24W/",
+    "keyword": "DECODE",
+    "links": [
+      "https://github.com/deterministic-machines/deslop-please"
+    ],
+    "title": "Rust Fix",
+    "posted_at": "2026-11-25T22:05:42+00:00"
   }
 ]
