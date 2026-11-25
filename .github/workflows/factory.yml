@@ -93,6 +93,20 @@ jobs:
           gh release create "$TAG" "$FILE" --title "$TAG" \
             --notes "Automated original faceless video (pixel guy + edge-tts + rhubarb + hyperframes)."
 
+      - name: Post to Facebook + Instagram
+        env:
+          FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+          FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          IG_PUBLIC_URL_BASE: ${{ secrets.IG_PUBLIC_URL_BASE }}
+          IG_UPLOAD_ENDPOINT: ${{ secrets.IG_UPLOAD_ENDPOINT }}
+          IG_UPLOAD_ACCESS_KEY: ${{ secrets.IG_UPLOAD_ACCESS_KEY }}
+          IG_UPLOAD_SECRET_KEY: ${{ secrets.IG_UPLOAD_SECRET_KEY }}
+          IG_UPLOAD_REGION: ${{ secrets.IG_UPLOAD_REGION }}
+          HASHTAGS: ${{ vars.HASHTAGS }}
+        run: python pipeline/publish.py   # skips platforms whose secrets are unset
+
       - name: Commit state (used topics)
         run: |
           git config user.name "pixel-factory"
