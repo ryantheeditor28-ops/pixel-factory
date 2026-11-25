@@ -89,9 +89,11 @@ def pages(token: str) -> None:
         print(ig_txt + "\n")
 
 
-def wire(short_token: str, page_name: str, page_id: str, repo: str, app_id: str) -> None:
+def wire(short_token: str, page_name: str, page_id: str, repo: str, app_id: str,
+         app_secret: str | None = None) -> None:
     import getpass
-    app_secret = getpass.getpass(f"App secret for app {app_id} (input hidden): ").strip()
+    if not app_secret:
+        app_secret = getpass.getpass(f"App secret for app {app_id} (input hidden): ").strip()
     if not app_secret:
         sys.exit("no app secret entered — get it from App Settings -> Basic -> App Secret")
 
@@ -119,6 +121,16 @@ def wire(short_token: str, page_name: str, page_id: str, repo: str, app_id: str)
             if page_name.lower() in str(p.get("name", "")).lower():
                 target = p
                 break
+    if target is None and page_id:
+        # fresh pages often lag behind /me/accounts — fetch the node directly
+        try:
+            direct = _get(page_id, access_token=user_tok,
+                          fields="id,name,access_token,instagram_business_account{id,username}")
+            if direct.get("access_token"):
+                print("(page found via direct fetch — list lag on brand-new pages)")
+                target = direct
+        except SystemExit:
+            pass
     if target is None:
         print("page not found. pages visible to this token:")
         for p in found:
@@ -186,6 +198,7 @@ def main() -> None:
     p4.add_argument("--page-id", default=None)
     p4.add_argument("--repo", default=DEFAULT_REPO)
     p4.add_argument("--app-id", default=PIXEL_APP_ID)
+    p4.add_argument("--app-secret", default=None, help="skip the hidden prompt (use sparingly)")
     args = ap.parse_args()
 
     if args.cmd == "exchange":
@@ -196,7 +209,8 @@ def main() -> None:
         data = _get(str(args.page_id), access_token=args.token, fields="access_token,name")
         print(f"{data.get('name')}: {data.get('access_token')}")
     elif args.cmd == "wire":
-        wire(args.short_token, args.page_name, args.page_id, args.repo, args.app_id)
+        wire(args.short_token, args.page_name, args.page_id, args.repo, args.app_id,
+             args.app_secret)
 
 
 if __name__ == "__main__":
