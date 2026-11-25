@@ -237,6 +237,7 @@ SCENE_CSS = """
   .phrase { position:absolute; left:0; right:0; top:0; font:900 60px/1.12 'Inter'; color:#10131a; }
   .phrase .acc { color:__ACCENT__; }
   #__UID__-guy { position:absolute; bottom:12px; left:calc(50% - 280px); width:560px; height:630px; }
+  #__UID__-body { position:absolute; inset:0; }
   #__UID__-guy img { width:100%; height:100%; display:block; image-rendering:pixelated; }
   #__UID__-mouth { position:absolute; }
   #__UID__-mouth .mshape { position:absolute; left:0; top:0; width:100%; height:100%;
@@ -286,11 +287,16 @@ def _scene_html(idx: int, scene: dict, tl_data: dict, lead: float) -> str:
     card_html = (card_html.replace("__CARDSTART__", f"{card_start:.2f}")
                           .replace("__CDUR__", f"{card_dur:.2f}"))
 
-    # caption phrases
+    # caption phrases — each phrase ends just before the next one starts: the
+    # +0.18s word-end padding in the timeline used to make captions overlap.
     phrases_html, word_pops = [], []
-    for pi, ph in enumerate(scene.get("phrases", [])):
+    phrases = scene.get("phrases", [])
+    for pi, ph in enumerate(phrases):
         pstart = ph["t0"] + lead
-        pdur = max(ph["t1"] - ph["t0"], 0.4)
+        end = ph["t1"] + lead
+        if pi + 1 < len(phrases):
+            end = min(end, phrases[pi + 1]["t0"] + lead - 0.02)
+        pdur = max(end - pstart, 0.15)
         hl = (scene.get("highlight") or "").lower().replace('"', "").split()
         spans = []
         for w in ph["words"]:
@@ -323,18 +329,19 @@ def _scene_html(idx: int, scene: dict, tl_data: dict, lead: float) -> str:
         mouth_tl.append(f'  tl.set("#{uid}-mX",{{opacity:1}},{t_close});')
     bob_repeat = max(int((duration - lead) / 0.68), 1) * 2
 
-    # frame-0 (thumbnail) rule: scene 1 shows everything immediately — no opacity entrances
+    # frame-0 (thumbnail) rule: scene 1 shows everything immediately — no opacity entrances.
+    # Entrance + bob target the -body wrapper so the mouth rides along with the body.
     if is_first:
         guy_tl = [
-            f'  tl.fromTo("#{uid}-img",{{scale:0.94,y:12}},{{scale:1,y:0,duration:0.30,ease:"back.out(1.6)"}},0);',
-            f'  tl.fromTo("#{uid}-img",{{y:0}},{{y:-12,duration:0.34,yoyo:true,repeat:{bob_repeat},ease:"sine.inOut",immediateRender:false}},{lead + 0.40:.2f});',
+            f'  tl.fromTo("#{uid}-body",{{scale:0.94,y:12}},{{scale:1,y:0,duration:0.30,ease:"back.out(1.6)"}},0);',
+            f'  tl.fromTo("#{uid}-body",{{y:0}},{{y:-12,duration:0.34,yoyo:true,repeat:{bob_repeat},ease:"sine.inOut",immediateRender:false}},{lead + 0.40:.2f});',
         ]
         title_tl = [f'  tl.fromTo("#{uid}-title",{{y:26,scale:0.96}},{{y:0,scale:1,duration:0.34,ease:"back.out(1.4)",immediateRender:false}},0.01);']
         kicker_tl = []
     else:
         guy_tl = [
-            f'  tl.fromTo("#{uid}-img",{{scale:0.88,y:18,opacity:0}},{{scale:1,y:0,opacity:1,duration:0.34,ease:"back.out(1.5)"}},0.05);',
-            f'  tl.fromTo("#{uid}-img",{{y:0}},{{y:-12,duration:0.34,yoyo:true,repeat:{bob_repeat},ease:"sine.inOut",immediateRender:false}},{lead + 0.40:.2f});',
+            f'  tl.fromTo("#{uid}-body",{{scale:0.88,y:18,opacity:0}},{{scale:1,y:0,opacity:1,duration:0.34,ease:"back.out(1.5)"}},0.05);',
+            f'  tl.fromTo("#{uid}-body",{{y:0}},{{y:-12,duration:0.34,yoyo:true,repeat:{bob_repeat},ease:"sine.inOut",immediateRender:false}},{lead + 0.40:.2f});',
         ]
         title_tl = [f'  tl.fromTo("#{uid}-title",{{opacity:0,y:36,scale:0.94}},{{opacity:1,y:0,scale:1,duration:0.38,ease:"back.out(1.5)"}},0.04);']
         kicker_tl = [f'  tl.fromTo("#{uid}-kicker",{{opacity:0,y:-14}},{{opacity:1,y:0,duration:0.30,ease:"back.out(1.7)"}},0.10);']
@@ -346,7 +353,7 @@ def _scene_html(idx: int, scene: dict, tl_data: dict, lead: float) -> str:
     if scene.get("card", {}).get("kind") == "demo":
         chunks = _cmd_chunks(scene["card"].get("cmd", ""))
         for i in range(len(chunks)):
-            demo_tl.append(f'  tl.to("#{uid}-cc{i}",{{opacity:1,duration:0.05}},{card_start + 0.25 + i * 0.14:.2f});')
+            demo_tl.append(f'  tl.fromTo("#{uid}-cc{i}",{{opacity:0}},{{opacity:1,duration:0.05,immediateRender:false}},{card_start + 0.25 + i * 0.16:.2f});')
         demo_tl.append(f'  tl.fromTo("#{uid}-cur",{{opacity:1}},{{opacity:0,duration:0.4,yoyo:true,repeat:99,ease:"steps(1)"}},{card_start + 0.20:.2f});')
         demo_tl.append(f'  tl.fromTo("#{uid}-progbar",{{width:"4%"}},{{width:"96%",duration:2.4,ease:"power1.inOut",immediateRender:false}},{card_start + 0.35:.2f});')
         for i in range(6):
@@ -367,8 +374,10 @@ def _scene_html(idx: int, scene: dict, tl_data: dict, lead: float) -> str:
   <div id="{uid}-cardwrap">{card_html}</div>
   <div id="{uid}-caps" data-track-kind="captions">{''.join(phrases_html)}</div>
   <div id="{uid}-guy" class="clip" data-start="{t0}" data-duration="__GDUR__">
-    <img id="{uid}-img" src="{guy}" alt="">
-    <div id="{uid}-mouth" style="{mouth_style}">{mouth_imgs}</div>
+    <div id="{uid}-body">
+      <img id="{uid}-img" src="{guy}" alt="">
+      <div id="{uid}-mouth" style="{mouth_style}">{mouth_imgs}</div>
+    </div>
   </div>
 </div>
 <script>
