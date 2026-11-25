@@ -1,0 +1,9 @@
+# build artifacts
+build/
+out/
+tools/
+__pycache__/
+*.mp4
+*.wav
+node_modules/
+.DS_Store

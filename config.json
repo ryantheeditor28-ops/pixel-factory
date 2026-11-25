@@ -1,0 +1,17 @@
+{
+  "voice": "en-US-GuyNeural",
+  "rate": "+8%",
+  "language": "en-US",
+  "niche": "trending AI tools, open-source GitHub repos and indie hacking",
+  "fps": 30,
+  "width": 1080,
+  "height": 1920,
+  "target_duration_sec": 45,
+  "max_duration_sec": 58,
+  "segment_gap_sec": 0.35,
+  "outro_sec": 0.9,
+  "comment_keywords": ["DECODE", "REBUILD", "PIXEL", "SHIP", "WRANGLE", "CLONE"],
+  "accent_color": "#2f6bff",
+  "accent_color_hot": "#ff5a2f",
+  "upload": { "releases": true, "commit_state": true }
+}

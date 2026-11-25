@@ -1,0 +1,26 @@
+{
+  "grid": {
+    "w": 32,
+    "h": 36
+  },
+  "scale_px": 20,
+  "sprite": {
+    "w": 640,
+    "h": 720
+  },
+  "mouth": {
+    "x": 15.0,
+    "y": 14.6,
+    "w": 2.0,
+    "h": 1.6
+  },
+  "poses": {
+    "idle": "idle.png",
+    "point": "point.png",
+    "thumbs": "thumbs.png",
+    "shrug": "shrug.png",
+    "wave": "wave.png",
+    "think": "think.png"
+  },
+  "note": "One pixel guy, drawn in code. Reused in every video. Mouth overlaid at render time."
+}

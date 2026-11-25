@@ -1,0 +1,96 @@
+name: factory
+
+# Makes one original faceless video per run, $0: free LLM (pollinations),
+# free TTS (edge-tts), free lip sync (rhubarb), free render (hyperframes CLI).
+# GitHub's own cron is flaky — it's the third trigger here; wire cron-job.org
+# to workflow_dispatch for the reliable layer (same pattern as grand6-loop).
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"   # every 6h at :17 UTC (drifts a few min; that's normal)
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: factory
+  cancel-in-progress: false
+
+jobs:
+  make:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install python deps
+        run: pip install edge-tts
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Chromium deps (headless render)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 \
+            libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 \
+            libxrandr2 libgbm1 libasound2 libpango-1.0-0 libcairo2 > /dev/null
+
+      - name: Cache rhubarb
+        id: rhubarb
+        uses: actions/cache@v4
+        with:
+          path: tools/rhubarb
+          key: rhubarb-1.14.0-linux
+
+      - name: Download rhubarb-lip-sync (MIT, free)
+        if: steps.rhubarb.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p tools/rhubarb
+          curl -sL -o /tmp/rhubarb.zip https://github.com/DanielSWolf/rhubarb-lip-sync/releases/download/v1.14.0/Rhubarb-Lip-Sync-1.14.0-Linux.zip
+          unzip -o -q /tmp/rhubarb.zip -d /tmp/rhubarb
+          BIN=$(find /tmp/rhubarb -name rhubarb -type f | head -1)
+          cp "$BIN" tools/rhubarb/
+          # rhubarb needs its resource folder (sphinx dict etc.) next to the binary
+          cp -r "$(dirname "$BIN")/res" tools/rhubarb/res
+          chmod +x tools/rhubarb/rhubarb
+          tools/rhubarb/rhubarb --version
+
+      - name: Cache hyperframes + chromium
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            ~/.cache/puppeteer
+            ~/.cache/hyperframes
+          key: hf-${{ runner.os }}-0.9.56
+
+      - name: Make one video
+        run: python pipeline/make_video.py
+
+      - name: Publish video as a release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          FILE=$(ls -t out/*.mp4 | head -1)
+          TAG="video-$(date -u +%Y%m%d-%H%M)"
+          gh release create "$TAG" "$FILE" --title "$TAG" \
+            --notes "Automated original faceless video (pixel guy + edge-tts + rhubarb + hyperframes)."
+
+      - name: Commit state (used topics)
+        run: |
+          git config user.name "pixel-factory"
+          git config user.email "actions@users.noreply.github.com"
+          git add state/
+          if git diff --staged --quiet; then echo "no state change"; else
+            git commit -m "state: log video [skip ci]"
+            git pull --rebase origin ${GITHUB_REF_NAME} || true
+            git push origin HEAD:${GITHUB_REF_NAME}
+          fi
