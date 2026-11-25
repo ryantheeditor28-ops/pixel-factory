@@ -30,7 +30,8 @@ def _mp3_duration(path: Path) -> float:
         return 0.0
 
 
-async def _synth_segment(text: str, voice: str, rate: str, mp3: Path, words_path: Path) -> None:
+async def _synth_segment(text: str, voice: str, rate: str, mp3: Path, words_path: Path,
+                         pitch: str = "+0Hz") -> None:
     words: list[dict] = []
     # boundary="WordBoundary" is REQUIRED: edge-tts 7.x defaults to
     # SentenceBoundary, which yields no per-word events at all.
@@ -41,7 +42,9 @@ async def _synth_segment(text: str, voice: str, rate: str, mp3: Path, words_path
     for attempt in range(4):
         try:
             words = []
-            comm = edge_tts.Communicate(text, voice, rate=rate, boundary="WordBoundary")
+            # pitch below neutral reads as confident/authoritative delivery
+            comm = edge_tts.Communicate(text, voice, rate=rate, pitch=pitch,
+                                        boundary="WordBoundary")
             with open(mp3, "wb") as f:
                 async for chunk in comm.stream():
                     if chunk["type"] == "audio":
@@ -74,6 +77,7 @@ def synth_segments(script: dict, cfg: dict, voice_dir: Path) -> list[dict]:
     voice_dir.mkdir(parents=True, exist_ok=True)
     voice = cfg["voice"]
     rate = cfg.get("rate", "+8%")
+    pitch = cfg.get("pitch", "+0Hz")
     segs = []
 
     async def run():
@@ -81,12 +85,12 @@ def synth_segments(script: dict, cfg: dict, voice_dir: Path) -> list[dict]:
         for i, seg in enumerate(script["segments"], start=1):
             mp3 = voice_dir / f"seg-{i:02d}.mp3"
             words_path = voice_dir / f"seg-{i:02d}.words.json"
-            jobs.append(_synth_segment(seg["text"], voice, rate, mp3, words_path))
+            jobs.append(_synth_segment(seg["text"], voice, rate, mp3, words_path, pitch))
             segs.append({"mp3": mp3, "words_path": words_path, "text": seg["text"]})
         await asyncio.gather(*jobs)
 
     asyncio.run(run())
     for s in segs:
         assert s["mp3"].exists() and s["mp3"].stat().st_size > 1000, f"TTS failed for {s['mp3']}"
-    print(f"[tts] {len(segs)} segments synthesized with {voice} ({rate})")
+    print(f"[tts] {len(segs)} segments synthesized with {voice} ({rate}, {pitch})")
     return segs

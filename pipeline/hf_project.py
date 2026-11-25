@@ -249,7 +249,7 @@ SCENE_CSS = """
     font-family:'Archivo Black',sans-serif; font-size:104px; line-height:1.06; color:#0e1220;
     letter-spacing:-1px; text-transform:uppercase; }
   #__UID__-title .acc { color:__ACCENT__; }
-  #__UID__-cardwrap { position:absolute; top:700px; left:130px; right:130px; }
+  #__UID__-cardwrap { position:absolute; top:660px; left:130px; right:130px; }
   .hf-card { position:relative; }
   .cw-head { display:flex; align-items:center; gap:11px; padding:18px 24px;
     background:#f2f3f7; border-radius:26px 26px 0 0; }
@@ -279,12 +279,12 @@ SCENE_CSS = """
   .cw-chipword { font-family:'Archivo Black',sans-serif; font-size:140px; line-height:1;
     color:__ACCENT__; letter-spacing:-2px; }
   .cw-chipbar { width:66%; height:16px; margin:26px auto 0; border-radius:9px; background:__ACCENT__; opacity:.25; }
-  #__UID__-caps { position:absolute; top:1136px; left:90px; right:90px; height:142px;
+  #__UID__-caps { position:absolute; top:1140px; left:64px; right:64px; height:206px;
     text-align:center; }
   .phrase { position:absolute; left:0; right:0; top:0; }
-  .caps-l1 { display:block; font:900 64px/1.04 'Inter'; color:__ACCENT__; letter-spacing:-1px; }
-  .caps-l2 { display:block; margin-top:8px; font:800 50px/1.08 'Inter'; color:#10131a; }
-  #__UID__-guy { position:absolute; bottom:12px; left:calc(50% - 280px); width:560px; height:630px; }
+  .caps-l1 { display:block; font:900 80px/1.02 'Inter'; color:__ACCENT__; letter-spacing:-1px; }
+  .caps-l2 { display:block; margin-top:10px; font:800 60px/1.06 'Inter'; color:#10131a; }
+  #__UID__-guy { position:absolute; bottom:12px; left:calc(50% - 249px); width:498px; height:560px; }
   #__UID__-body { position:absolute; inset:0; }
   #__UID__-body .pose { position:absolute; left:0; top:0; width:100%; height:100%;
     opacity:0; image-rendering:pixelated; }

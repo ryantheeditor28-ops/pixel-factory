@@ -15,7 +15,7 @@ from pathlib import Path
 from llm import dump_json, load_json
 
 LEAD = 0.45      # silence before the hook (first frame shows the title = thumbnail)
-GAP = 0.35       # breath between segments
+GAP = 0.28       # breath between segments (template pacing: quick cuts, no dead air)
 OUTRO = 0.95     # hold the last frame
 
 

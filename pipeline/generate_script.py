@@ -209,7 +209,9 @@ Write a {target}second vertical video script covering these {n} trending GitHub 
 {topic_block}
 
 Rules:
-- Exactly {nseg} segments. Each segment is 1-3 spoken sentences (max ~55 words).
+- Exactly {nseg} segments. Each segment is 1-3 spoken sentences (max ~50 words).
+- Delivery: CONFIDENT and declarative. Short punchy sentences. State facts, never
+  hedge — no "maybe", "perhaps", "I think", "kind of". No filler words.
 - Segment 1 is the HOOK: how much per month these free tools replace. "price" = a
   realistic combined USD monthly cost of the paid equivalents, like "$148".
 - Segments 2..{ntools}: ONE tool each, in order. Card kind "tool" with n={seq} and that
@@ -316,7 +318,9 @@ language: {lang}
 url: {url}
 
 Rules:
-- {nseg} segments. Each segment is 1-3 spoken sentences (max ~55 words per segment).
+- {nseg} segments. Each segment is 1-3 spoken sentences (max ~50 words per segment).
+- Delivery: CONFIDENT and declarative. Short punchy sentences. State facts, never
+  hedge — no "maybe", "perhaps", "I think", "kind of". No filler words.
 - Segment 1 is the HOOK: bold claim about the repo, no greeting, no intro.
 - Middle segments: what it does, why it is blowing up, one surprising detail.
 - Final segment: CTA telling viewers to comment "{keyword}" to get the link + follow.
