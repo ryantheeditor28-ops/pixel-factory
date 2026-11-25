@@ -4,7 +4,8 @@
     "Zettrox/ztrx",
     "daily-drops",
     "crhywun/g1-acq",
-    "xcl-dev/xcl"
+    "xcl-dev/xcl",
+    "kai415-debug/ffmpeg-video-audio-converter"
   ],
   "videos": [
     {
@@ -36,6 +37,12 @@
       "topic": "xcl-dev/xcl",
       "source": "llm",
       "title": "Xbox on Windows"
+    },
+    {
+      "stamp": "20261125-1719",
+      "topic": "kai415-debug/ffmpeg-video-audio-converter",
+      "source": "llm",
+      "title": "Free FFmpeg GUI"
     }
   ]
 }
