@@ -79,6 +79,9 @@ jobs:
           key: hf-${{ runner.os }}-0.9.56
 
       - name: Make one video
+        env:
+          # raises the GitHub search API limit on shared runner IPs (trending picks)
+          GITHUB_TOKEN: ${{ github.token }}
         run: python pipeline/make_video.py
 
       - name: Publish video as a release

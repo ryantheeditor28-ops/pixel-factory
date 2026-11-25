@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import os
 import random
 import urllib.parse
 import urllib.request
@@ -25,10 +26,14 @@ GESTURE_FLOW = ["point", "point", "thumbs", "think", "shrug", "thumbs", "wave", 
 
 
 def _http_json(url: str, timeout: int = 30):
-    req = urllib.request.Request(url, headers={
+    headers = {
         "User-Agent": "pixel-factory/0.1",
         "Accept": "application/vnd.github+json",
-    })
+    }
+    token = os.environ.get("GITHUB_TOKEN")  # CI: workflow's own token, 5k req/hr
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    req = urllib.request.Request(url, headers=headers)
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         return json.load(resp)  # type: ignore[name-defined]
 

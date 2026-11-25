@@ -232,12 +232,15 @@ SCENE_CSS = """
   .cw-chipword { font-family:'Archivo Black',sans-serif; font-size:140px; line-height:1;
     color:__ACCENT__; letter-spacing:-2px; }
   .cw-chipbar { width:66%; height:16px; margin:26px auto 0; border-radius:9px; background:__ACCENT__; opacity:.25; }
-  #__UID__-caps { position:absolute; top:1142px; left:90px; right:90px; height:136px;
+  #__UID__-caps { position:absolute; top:1136px; left:90px; right:90px; height:142px;
     text-align:center; }
-  .phrase { position:absolute; left:0; right:0; top:0; font:900 60px/1.12 'Inter'; color:#10131a; }
-  .phrase .acc { color:__ACCENT__; }
+  .phrase { position:absolute; left:0; right:0; top:0; }
+  .caps-l1 { display:block; font:900 56px/1.04 'Inter'; color:__ACCENT__; letter-spacing:-1px; }
+  .caps-l2 { display:block; margin-top:8px; font:800 44px/1.08 'Inter'; color:#10131a; }
   #__UID__-guy { position:absolute; bottom:12px; left:calc(50% - 280px); width:560px; height:630px; }
   #__UID__-body { position:absolute; inset:0; }
+  #__UID__-body .pose { position:absolute; left:0; top:0; width:100%; height:100%;
+    opacity:0; image-rendering:pixelated; }
   #__UID__-guy img { width:100%; height:100%; display:block; image-rendering:pixelated; }
   #__UID__-mouth { position:absolute; }
   #__UID__-mouth .mshape { position:absolute; left:0; top:0; width:100%; height:100%;
@@ -271,7 +274,6 @@ def _scene_html(idx: int, scene: dict, tl_data: dict, lead: float) -> str:
     t0 = "0.000" if is_first else "0.040"
     card_start = 0.0 if is_first else 0.20
     card_dur = max(duration - card_start - 0.05, 0.5)
-    guy = f"assets/character/{scene.get('gesture', 'idle')}.png"
     manifest = load_json(Path(__file__).resolve().parent.parent / "assets" / "character" / "character.json")
     mx, my, mw, mh = manifest["mouth"]["x"], manifest["mouth"]["y"], manifest["mouth"]["w"], manifest["mouth"]["h"]
     gw, gh = manifest["grid"]["w"], manifest["grid"]["h"]
@@ -287,26 +289,57 @@ def _scene_html(idx: int, scene: dict, tl_data: dict, lead: float) -> str:
     card_html = (card_html.replace("__CARDSTART__", f"{card_start:.2f}")
                           .replace("__CDUR__", f"{card_dur:.2f}"))
 
-    # caption phrases — each phrase ends just before the next one starts: the
-    # +0.18s word-end padding in the timeline used to make captions overlap.
-    phrases_html, word_pops = [], []
+    # captions — two-line style per phrase: line 1 = the hook words (accent blue),
+    # line 2 = the supporting words (black) below. Each group rises in with an ease
+    # while fading 0 -> 100, ends just before the next phrase starts (no overlap).
+    phrases_html, cap_tl = [], []
     phrases = scene.get("phrases", [])
+    hl_set = {(t.strip(".,!?;:")) for t in
+              (scene.get("highlight") or "").lower().replace('"', "").split() if t}
     for pi, ph in enumerate(phrases):
         pstart = ph["t0"] + lead
         end = ph["t1"] + lead
         if pi + 1 < len(phrases):
             end = min(end, phrases[pi + 1]["t0"] + lead - 0.02)
         pdur = max(end - pstart, 0.15)
-        hl = (scene.get("highlight") or "").lower().replace('"', "").split()
-        spans = []
-        for w in ph["words"]:
-            clean = w["text"].strip().strip(".,!?;:").lower()
-            cls = ' class="acc"' if clean and clean in hl else ""
-            spans.append(f'<span id="{uid}-w{len(word_pops)}"{cls}>{_esc(w["text"])}</span>')
-            word_pops.append((f"#{uid}-w{len(word_pops)}", round(w["t0"] + lead, 3)))
+        words = [w["text"].strip() for w in ph["words"] if w["text"].strip()]
+        l1_idx = [i for i, w in enumerate(words) if w.strip(".,!?;:").lower() in hl_set]
+        if not l1_idx:
+            l1_idx = [0]  # no highlight here: lead word carries the blue line
+        l1_ws = [words[i] for i in l1_idx]
+        l2_ws = [w for i, w in enumerate(words) if i not in l1_idx]
+        l2_html = (f'<span class="caps-l2">{_esc(" ".join(l2_ws))}</span>' if l2_ws else "")
         phrases_html.append(
             f'<div id="{uid}-p{pi}" class="clip phrase" data-start="{pstart:.3f}" '
-            f'data-duration="{pdur:.3f}">{" ".join(spans)}</div>')
+            f'data-duration="{pdur:.3f}"><span class="caps-l1">{_esc(" ".join(l1_ws))}</span>{l2_html}</div>')
+        # ease rise: slide up + opacity 0 -> 100 together
+        cap_tl.append(f'  tl.fromTo("#{uid}-p{pi}",{{y:34,opacity:0}},'
+                      f'{{y:0,opacity:1,duration:0.32,ease:"power3.out",immediateRender:false}},{pstart:.3f});')
+        if pdur >= 0.45:  # soften the exit for anything on screen long enough
+            cap_tl.append(f'  tl.to("#{uid}-p{pi}",{{opacity:0,duration:0.12,immediateRender:false}},'
+                          f'{pstart + pdur - 0.12:.3f});')
+
+    # gestures: hard-cut pose swaps on speech beats (every 2nd phrase start), so the
+    # guy changes gestures naturally while talking instead of once per scene.
+    POSE_ORDER = ("idle", "point", "thumbs", "think", "shrug", "wave")
+    pose0 = scene.get("gesture", "idle")
+    if pose0 not in POSE_ORDER:
+        pose0 = "idle"
+    pose_imgs = "".join(
+        f'<img id="{uid}-pose-{p}" class="pose" src="assets/character/{p}.png" alt="">'
+        for p in POSE_ORDER)
+    gesture_tl = [f'  tl.set("#{uid}-pose-{pose0}",{{opacity:1}},0);']
+    prev_pose = pose0
+    flow = [g for g in ("point", "thumbs", "wave", "think", "shrug") if g != pose0]
+    beats = [round(max(phrases[bi]["t0"] + lead, 0.5), 3)
+             for bi in range(2, len(phrases), 2)]
+    for bi, t in enumerate(beats):
+        new = flow[bi % len(flow)]
+        if new == prev_pose:
+            continue
+        gesture_tl.append(f'  tl.set("#{uid}-pose-{prev_pose}",{{opacity:0}},{t:.3f});')
+        gesture_tl.append(f'  tl.set("#{uid}-pose-{new}",{{opacity:1}},{t:.3f});')
+        prev_pose = new
 
     # mouth: stacked per-sound PNGs, swapped on rhubarb cues (template-style image mouths)
     cues = scene.get("cues") or [{"t0": 0, "t1": duration, "shape": "X"}]
@@ -375,18 +408,18 @@ def _scene_html(idx: int, scene: dict, tl_data: dict, lead: float) -> str:
   <div id="{uid}-caps" data-track-kind="captions">{''.join(phrases_html)}</div>
   <div id="{uid}-guy" class="clip" data-start="{t0}" data-duration="__GDUR__">
     <div id="{uid}-body">
-      <img id="{uid}-img" src="{guy}" alt="">
+      {pose_imgs}
       <div id="{uid}-mouth" style="{mouth_style}">{mouth_imgs}</div>
     </div>
   </div>
 </div>
 <script>
   const tl = gsap.timeline({{ paused: true }});
-{chr(10).join(title_tl + kicker_tl + card_tl + guy_tl + demo_tl)}
+{chr(10).join(title_tl + kicker_tl + card_tl + guy_tl + demo_tl + gesture_tl)}
   tl.fromTo("#{uid}-blob1", {{ x: 0, y: 0 }}, {{ x: 60, y: -50, duration: 4, yoyo: true, repeat: 99, ease: "sine.inOut", immediateRender: false }}, 0);
   tl.fromTo("#{uid}-blob2", {{ x: 0, y: 0 }}, {{ x: -50, y: 60, duration: 5, yoyo: true, repeat: 79, ease: "sine.inOut", immediateRender: false }}, 0);
 {chr(10).join(mouth_tl)}
-{chr(10).join(f'  tl.fromTo("{sel}", {{ opacity: 0, scale: 0.5, y: 16 }}, {{ opacity: 1, scale: 1, y: 0, duration: 0.16, ease: "back.out(2.2)", immediateRender: false }}, {t});' for sel, t in word_pops)}
+{chr(10).join(cap_tl)}
   window.__timelines["{uid}"] = tl;
 </script>
 </template>'''
