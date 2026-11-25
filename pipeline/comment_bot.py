@@ -307,7 +307,10 @@ def main() -> int:
                 print(f"[dm] FAILED {platform} comment {cid}: {err}")
             changed = True
 
-    if changed and not args.dry_run:
+    # Always materialize the log outside dry-run: on a clean first run nothing
+    # changed, but the CI commit step expects the file to exist (and seeding it
+    # once means later clean runs are true no-ops with no diff to commit).
+    if not args.dry_run and (changed or not DM_LOG_PATH.exists()):
         _save(DM_LOG_PATH, dm_log)
     print(f"[dm] done: {sent} sent, {failed} failed, {skipped} dry-run skips, "
           f"{len(registry)} posts watched")
