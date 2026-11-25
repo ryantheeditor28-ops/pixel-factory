@@ -34,19 +34,35 @@ async def _synth_segment(text: str, voice: str, rate: str, mp3: Path, words_path
     words: list[dict] = []
     # boundary="WordBoundary" is REQUIRED: edge-tts 7.x defaults to
     # SentenceBoundary, which yields no per-word events at all.
-    comm = edge_tts.Communicate(text, voice, rate=rate, boundary="WordBoundary")
-    with open(mp3, "wb") as f:
-        async for chunk in comm.stream():
-            if chunk["type"] == "audio":
-                f.write(chunk["data"])
-            elif chunk["type"] == "WordBoundary":
-                txt = (chunk.get("text") or "").strip()
-                if txt:
-                    words.append({
-                        "t0": round(chunk["offset"] / 1e7, 3),
-                        "t1": round((chunk["offset"] + chunk["duration"]) / 1e7, 3),
-                        "text": txt,
-                    })
+    # The free endpoint occasionally refuses datacenter IPs (NoAudioReceived /
+    # connection resets) — retry with backoff so one transient 403 doesn't kill
+    # an unattended CI run.
+    last_err: Exception | None = None
+    for attempt in range(4):
+        try:
+            words = []
+            comm = edge_tts.Communicate(text, voice, rate=rate, boundary="WordBoundary")
+            with open(mp3, "wb") as f:
+                async for chunk in comm.stream():
+                    if chunk["type"] == "audio":
+                        f.write(chunk["data"])
+                    elif chunk["type"] == "WordBoundary":
+                        txt = (chunk.get("text") or "").strip()
+                        if txt:
+                            words.append({
+                                "t0": round(chunk["offset"] / 1e7, 3),
+                                "t1": round((chunk["offset"] + chunk["duration"]) / 1e7, 3),
+                                "text": txt,
+                            })
+            if mp3.exists() and mp3.stat().st_size > 1000:
+                break
+            raise RuntimeError(f"empty audio from edge-tts (attempt {attempt + 1})")
+        except Exception as e:  # noqa: BLE001 - retry any transport-level failure
+            last_err = e
+            mp3.unlink(missing_ok=True)
+            await asyncio.sleep(2.0 * (attempt + 1))
+    else:
+        raise RuntimeError(f"TTS failed after 4 attempts: {last_err}")
     if not words:  # paranoid fallback: one phrase covering the real duration
         dur = _mp3_duration(mp3) or 2.0
         words = [{"t0": 0.0, "t1": round(dur, 3), "text": text[:48]}]
