@@ -48,7 +48,8 @@
     "MSNightmare/FastUnlock",
     "chanke17/KuroCat",
     "Nebula4207/av1-video-encoder-gui",
-    "avatarmanz/VIctory-7900XTX"
+    "avatarmanz/VIctory-7900XTX",
+    "qianyiai/KuroCat"
   ],
   "videos": [
     {
@@ -210,6 +211,13 @@
       "topic": "listicle:w01fb0ss/PiBot+Basil0879/steam-game-idler+zero5122/offline-file-converter-windows",
       "title": "FREE Tech Hacks",
       "published_via": "backfill (16:00 UTC run: IG transient 400, state commit was skipped)"
+    },
+    {
+      "stamp": "20261126-1947",
+      "topic": "qianyiai/KuroCat",
+      "source": "llm",
+      "format": "single",
+      "title": "Cat Code Companion"
     }
   ]
 }
