@@ -33,7 +33,11 @@
     "sous-labs/songe",
     "olive527/steam-library-manager-windows",
     "iamajmeena/neonclipping",
-    "omonkeyz/xbox-emulator"
+    "omonkeyz/xbox-emulator",
+    "listicle:Developing-Gamer/agent-sim+solv4626/steam-achievement-manager-windows+umbradev315/ffmpeg-video-audio-converter",
+    "Developing-Gamer/agent-sim",
+    "solv4626/steam-achievement-manager-windows",
+    "umbradev315/ffmpeg-video-audio-converter"
   ],
   "videos": [
     {
@@ -147,6 +151,13 @@
       "source": "llm",
       "format": "single",
       "title": "Xbox on PC"
+    },
+    {
+      "stamp": "20261126-0046",
+      "topic": "listicle:Developing-Gamer/agent-sim+solv4626/steam-achievement-manager-windows+umbradev315/ffmpeg-video-audio-converter",
+      "source": "llm",
+      "format": "listicle",
+      "title": "$148 Savings"
     }
   ]
 }
