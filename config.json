@@ -19,7 +19,7 @@
     "keywords": ["REPO"],
     "max_age_days": 7,
     "comment_limit": 50,
-    "max_attempts": 3
+    "max_attempts": 10
   },
   "upload": { "releases": true, "commit_state": true }
 }
