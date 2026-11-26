@@ -140,7 +140,9 @@ jobs:
         run: python pipeline/publish.py   # skips platforms whose secrets are unset
 
       - name: Commit state (used topics)
-        if: steps.gate.outputs.skip != 'true'
+        # always(): a partial publish failure (e.g. one platform 400s) must not
+        # lose the used-topic log - the next run would otherwise reuse the topic.
+        if: always() && steps.gate.outputs.skip != 'true'
         run: |
           git config user.name "pixel-factory"
           git config user.email "actions@users.noreply.github.com"

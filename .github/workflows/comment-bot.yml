@@ -1,10 +1,11 @@
 name: comment-bot
 
-# Comment-gate auto-DM: watches comments on posted FB/IG reels and sends the
-# promised links as a private reply when someone comments the trigger keyword
-# (the videos' CTA). Hourly cron — webhooks would need a public always-on
-# endpoint, which the $0/no-server factory doesn't have. State (dm_log.json)
-# dedupes across runs and is committed back only when it changed.
+# Comment-gate auto-DM: watches comments on posted FB/IG reels and YouTube
+# videos and replies with the promised links when someone comments the trigger
+# keyword (the videos' CTA) — private replies on FB/IG, public replies on
+# YouTube. Hourly cron — webhooks would need a public always-on endpoint,
+# which the $0/no-server factory doesn't have. State (dm_log.json) dedupes
+# across runs and is committed back only when it changed.
 
 on:
   schedule:
@@ -42,6 +43,9 @@ jobs:
           FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
         run: python pipeline/comment_bot.py
 
       - name: Commit DM log (only when it changed)

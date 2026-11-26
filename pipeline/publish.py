@@ -227,18 +227,28 @@ def ig_post(video: Path, caption: str) -> dict:
     user_id, token = env("IG_USER_ID"), env("IG_ACCESS_TOKEN")
     video_url = _public_video_url(video)
 
-    r = req("POST", f"{base}/{user_id}/media", params={
-        "media_type": "REELS",
-        "video_url": video_url,
-        "caption": caption[:CAPTION_MAX],
-        "share_to_feed": "true",
-        "access_token": token,
-    })
-    if r.status_code >= 400:
-        raise PublishError(f"ig container: HTTP {r.status_code}: {snippet(r)}")
-    container_id = str((r.json() or {}).get("id") or "")
+    # Meta occasionally 400s the container create with a transient
+    # "Object ... does not exist" (code 100) — seen once in production after a
+    # clean run with no changes. Retry those before giving up.
+    container_id = ""
+    last_err = ""
+    for attempt in range(1, 4):
+        r = req("POST", f"{base}/{user_id}/media", params={
+            "media_type": "REELS",
+            "video_url": video_url,
+            "caption": caption[:CAPTION_MAX],
+            "share_to_feed": "true",
+            "access_token": token,
+        })
+        if r.status_code < 400:
+            container_id = str((r.json() or {}).get("id") or "")
+            break
+        last_err = f"HTTP {r.status_code}: {snippet(r)}"
+        if attempt < 3:
+            print(f"[publish] ig container attempt {attempt} failed, retrying: {last_err[:160]}")
+            time.sleep(10 * attempt)
     if not container_id:
-        raise PublishError(f"ig container returned no id: {snippet(r)}")
+        raise PublishError(f"ig container: {last_err}")
 
     deadline = time.monotonic() + POLL_MAX_SECS
     while time.monotonic() < deadline:
