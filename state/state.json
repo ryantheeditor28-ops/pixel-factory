@@ -42,7 +42,8 @@
     "listicle:Indigo-0167/universal-game-mod-manager+Belobug/VIctory-Belobug-AMD+ItsNotRexed/Hookshot",
     "Indigo-0167/universal-game-mod-manager",
     "Belobug/VIctory-Belobug-AMD",
-    "ItsNotRexed/Hookshot"
+    "ItsNotRexed/Hookshot",
+    "Avaneesh-Inamdar/Stream-Tube-Desktop"
   ],
   "videos": [
     {
@@ -177,6 +178,13 @@
       "source": "llm",
       "format": "listicle",
       "title": "FREE GIT REPOS"
+    },
+    {
+      "stamp": "20261126-0341",
+      "topic": "Avaneesh-Inamdar/Stream-Tube-Desktop",
+      "source": "llm",
+      "format": "single",
+      "title": "Native YouTube Reimagined"
     }
   ]
 }
