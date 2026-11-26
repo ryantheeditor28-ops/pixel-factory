@@ -350,7 +350,7 @@ SCENE_CSS = """
   .cw-cavatar { display:flex; align-items:center; justify-content:center; width:74px; height:74px;
     border-radius:50%; background:#101423; color:#fff; font:900 32px 'Inter'; flex:0 0 74px; }
   .cw-cinput { flex:1; min-width:0; display:flex; align-items:center; gap:2px;
-    text-align:left; font:700 34px 'Inter'; color:#10131a; white-space:nowrap;
+    justify-content:center; font:700 34px 'Inter'; color:#10131a; white-space:nowrap;
     overflow:hidden; background:#eef0f6; border-radius:999px; padding:16px 26px; }
   .cw-cph { color:#9aa1b5; }
   .cw-ctext { font-weight:800; }
@@ -548,7 +548,7 @@ def _scene_html(idx: int, scene: dict, tl_data: dict, lead: float) -> str:
         listicle_tl.append(
             f'  tl.set("#{uid}-caret",{{opacity:1}},{chars[0] - 0.12:.2f});')
         listicle_tl.append(
-            f'  tl.set("#{uid}-cph",{{opacity:0}},{chars[0] - 0.02:.2f});')
+            f'  tl.set("#{uid}-cph",{{display:"none"}},{chars[0] - 0.02:.2f});')
         for i, tc in enumerate(chars):
             listicle_tl.append(
                 f'  tl.set("#{uid}-ctext",{{innerText:{json.dumps(kw[:i + 1])}}},{tc:.2f});')
