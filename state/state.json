@@ -32,7 +32,8 @@
     "listicle:sous-labs/songe+olive527/steam-library-manager-windows+iamajmeena/neonclipping",
     "sous-labs/songe",
     "olive527/steam-library-manager-windows",
-    "iamajmeena/neonclipping"
+    "iamajmeena/neonclipping",
+    "omonkeyz/xbox-emulator"
   ],
   "videos": [
     {
@@ -139,6 +140,13 @@
       "source": "llm",
       "format": "listicle",
       "title": "FREE Tech Trio"
+    },
+    {
+      "stamp": "20261126-0039",
+      "topic": "omonkeyz/xbox-emulator",
+      "source": "llm",
+      "format": "single",
+      "title": "Xbox on PC"
     }
   ]
 }
