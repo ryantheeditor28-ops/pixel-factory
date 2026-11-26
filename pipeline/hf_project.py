@@ -30,8 +30,9 @@ import time
 from pathlib import Path
 
 from llm import dump_json, load_json
-from shot_plan import (BLOCK_OFFSETS, PROG_DURATION, PROG_START, TYPING_OFFSETS,
-                       TYPING_T0, plan_shots)
+from shot_plan import (BLOCK_OFFSETS, PRICE_ZERO_T, PROG_DURATION, PROG_START,
+                       REPO_EXPL_T, TOOL_EXPL_T, TOOL_PING_T, TYPING_OFFSETS,
+                       TYPING_T0, cta_plan, plan_shots)
 
 
 def _rm_tree(path: Path) -> None:
@@ -233,11 +234,12 @@ def _card_html(card: dict, uid: str) -> str:
     <span class="cw-toolstars">{STAR_SVG}<span id="{uid}-starcount">{stars}</span></span></div>
 </div>'''
     if kind == "comment":
-        # listicle CTA: the winner's comment-input mockup with the keyword gate
-        kw = _esc(card.get("keyword", "REPO"))
+        # CTA (both formats): a real comment box — placeholder, the keyword typed
+        # char by char with a blinking caret (shot_plan.cta_plan beats), then the
+        # send button submits. The typed text itself is set by the tween below.
         return f'''<div id="{uid}-card" class="clip hf-card" data-start="__CARDSTART__" data-duration="__CDUR__">
   <div class="cw-comment"><span class="cw-cavatar">T</span>
-    <span class="cw-cinput">Comment &quot;{kw}&quot;</span>
+    <span class="cw-cinput"><span id="{uid}-cph" class="cw-cph">Add a comment...</span><span id="{uid}-ctext" class="cw-ctext"></span><span id="{uid}-caret" class="cw-caret"></span></span>
     <span id="{uid}-send" class="cw-csend">➤</span></div>
 </div>'''
     return ""  # plain: replaced by the word chip in _scene_html
@@ -347,8 +349,13 @@ SCENE_CSS = """
     border-radius:999px; padding:26px 30px; box-shadow:0 26px 60px rgba(8,12,26,.16); }
   .cw-cavatar { display:flex; align-items:center; justify-content:center; width:74px; height:74px;
     border-radius:50%; background:#101423; color:#fff; font:900 32px 'Inter'; flex:0 0 74px; }
-  .cw-cinput { flex:1; text-align:left; font:700 34px 'Inter'; color:#10131a;
-    white-space:nowrap; overflow:hidden; }
+  .cw-cinput { flex:1; min-width:0; display:flex; align-items:center; gap:2px;
+    text-align:left; font:700 34px 'Inter'; color:#10131a; white-space:nowrap;
+    overflow:hidden; background:#eef0f6; border-radius:999px; padding:16px 26px; }
+  .cw-cph { color:#9aa1b5; }
+  .cw-ctext { font-weight:800; }
+  .cw-caret { flex:0 0 3px; width:3px; height:38px; margin-left:6px; border-radius:2px;
+    background:__ACCENT__; opacity:0; }
   .cw-csend { display:flex; align-items:center; justify-content:center; width:78px; height:78px;
     border-radius:50%; background:__ACCENT__; color:#fff; font-size:36px; flex:0 0 78px; }
 """
@@ -470,7 +477,7 @@ def _scene_html(idx: int, scene: dict, tl_data: dict, lead: float) -> str:
         listicle_tl.append(
             f'  tl.fromTo("#{uid}-zero",{{scale:0.5,opacity:0}},'
             f'{{scale:1,opacity:1,duration:0.34,ease:"back.out(2.2)",immediateRender:false}},'
-            f'{card_start + 1.00:.2f});')
+            f'{card_start + PRICE_ZERO_T:.2f});')
     if is_listicle and kind == "tool":
         # measured sub-row cadence: near-uniform ~0.18s beats (the reference's
         # stagger barely accelerates), each row wind-up -> snap -> settle
@@ -486,7 +493,7 @@ def _scene_html(idx: int, scene: dict, tl_data: dict, lead: float) -> str:
         # the description wipes in, the info rows shimmer on a loop, the star
         # count ticks up, the app tile floats, the #N badge pings. All tweens
         # are bounded-repeat (seek-safe for the frame-accurate render).
-        t_expl = t + 0.35  # after the Open-source chip lands
+        t_expl = card_start + TOOL_EXPL_T  # shot_plan beat: desc wipe + badge ping
         listicle_tl.append(
             f'  tl.set("#{uid}-tooldesc",{{clipPath:"inset(-6% 100% -6% 0)"}},{card_start + 0.01:.2f});')
         listicle_tl.append(
@@ -512,11 +519,11 @@ def _scene_html(idx: int, scene: dict, tl_data: dict, lead: float) -> str:
         listicle_tl.append(
             f'  tl.fromTo("#{uid}-toolnum",{{scale:1}},'
             f'{{scale:1.14,duration:0.42,yoyo:true,repeat:3,ease:"sine.inOut",immediateRender:false}},'
-            f'{card_start + 1.30:.2f});')
+            f'{card_start + TOOL_PING_T:.2f});')
     if kind == "repo":
         # same explain-time motion on the single-mode GitHub card: description
         # wipes in as the narration reads it, stars tick up from 0
-        t_expl = card_start + 0.85
+        t_expl = card_start + REPO_EXPL_T
         cardtl = [
             f'  tl.set("#{uid}-repodesc",{{clipPath:"inset(-6% 100% -6% 0)"}},{card_start + 0.01:.2f});',
             f'  tl.to("#{uid}-repodesc",{{clipPath:"inset(-6% 0% -6% 0)",duration:0.9,ease:"power2.out"}},{t_expl:.2f});',
@@ -529,13 +536,42 @@ def _scene_html(idx: int, scene: dict, tl_data: dict, lead: float) -> str:
                 f'  tl.to("#{uid}-repostars",{{innerText:{int(stars_raw)},snap:"innerText",'
                 f'duration:0.9,ease:"power1.out"}},{t_expl:.2f});')
         listicle_tl.extend(cardtl)
-    if is_listicle and kind == "comment":
-        # pulse the send button exactly when the shot plan's finale impact lands
-        t_hit = max(duration - 0.50, card_start + 0.30)
+    if kind == "comment":
+        # the comment box is a performance: placeholder -> keyword typed char by
+        # char (blinking caret, keystroke foley from the shot plan) -> the send
+        # button presses and settles into a green "sent" state. Beat times come
+        # from shot_plan.cta_plan so sounds and letters can never drift (S3).
+        kw = (str((scene.get("card") or {}).get("keyword")
+                  or tl_data.get("comment_keyword") or "REPO").strip())[:12] or "REPO"
+        plan = cta_plan(card_start, kw, duration)
+        chars, t_send = plan["chars"], plan["send"]
         listicle_tl.append(
-            f'  tl.fromTo("#{uid}-send",{{scale:1}},'
-            f'{{scale:1.22,duration:0.10,yoyo:true,repeat:1,ease:"power2.out",immediateRender:false}},'
-            f'{t_hit:.2f});')
+            f'  tl.set("#{uid}-caret",{{opacity:1}},{chars[0] - 0.12:.2f});')
+        listicle_tl.append(
+            f'  tl.set("#{uid}-cph",{{opacity:0}},{chars[0] - 0.02:.2f});')
+        for i, tc in enumerate(chars):
+            listicle_tl.append(
+                f'  tl.set("#{uid}-ctext",{{innerText:{json.dumps(kw[:i + 1])}}},{tc:.2f});')
+        blinks = max(int((t_send - chars[0]) / 0.53), 1) * 2
+        listicle_tl.append(
+            f'  tl.to("#{uid}-caret",{{opacity:0,duration:0.20,yoyo:true,repeat:{blinks},'
+            f'ease:"power1.inOut",immediateRender:false}},{chars[0]:.2f});')
+        listicle_tl.append(
+            f'  tl.set("#{uid}-caret",{{opacity:0}},{t_send + 0.05:.2f});')
+        # submit: press dip -> overshoot -> settle into the green "sent" state
+        listicle_tl.append(
+            f'  tl.to("#{uid}-send",{{scale:0.82,duration:0.09,ease:"power2.in",'
+            f'immediateRender:false}},{t_send:.2f});')
+        listicle_tl.append(
+            f'  tl.to("#{uid}-send",{{scale:1.16,duration:0.13,ease:"power2.out"}},'
+            f'{t_send + 0.09:.2f});')
+        listicle_tl.append(
+            f'  tl.to("#{uid}-send",{{scale:1,backgroundColor:"#1f9d55",'
+            f'duration:0.16,ease:"power2.out"}},{t_send + 0.22:.2f});')
+        # the typed comment does a tiny proud hop as it "posts"
+        listicle_tl.append(
+            f'  tl.to("#{uid}-ctext",{{y:-6,duration:0.16,yoyo:true,repeat:1,'
+            f'ease:"sine.inOut",immediateRender:false}},{t_send + 0.10:.2f});')
 
     # captions — two-line style per phrase: line 1 = the hook words (accent blue),
     # line 2 = the supporting words (black) below. Each group rises in with an ease

@@ -6,6 +6,17 @@ CC BY entries require attribution in the published video's credits/description.
 
 Downloaded files are lossy MP3 previews, not uploader originals.
 
+Processed kit (pipeline/prep_sfx.py, outputs committed):
+
+- `fs-XXXXXX-n.mp3` — loudness-matched copies of the originals above
+  (mean pulled to -20 dBFS, peak capped ~ -3 dBFS). Same CC0 license; edits:
+  gain normalization + peak limiting only.
+- `syn-ping.mp3`, `syn-ding.mp3` — clean UI tones synthesized locally with
+  ffmpeg (sine partials + exponential decay). No third-party material, no
+  attribution required.
+
+The shot plan (`pipeline/shot_plan.py`) cues only the processed files.
+
 ~~~text
 fs-816261.mp3 — Broomstick whoosh 2 - Soft low OKM1 by Sadiquecat
 https://freesound.org/people/Sadiquecat/sounds/816261/

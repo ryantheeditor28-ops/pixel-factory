@@ -125,7 +125,7 @@ def fallback_script(topic: dict | None, keyword: str, cfg: dict) -> dict:
                 "git clone " + topic["url"], "cd " + name.split("/")[1], "./run  # that's it"]},
              "text": f"You can try it in one line. Clone it, run it, done. "
                      f"Link in the comments."},
-            {"gesture": "wave", "card": {"kind": "plain"},
+            {"gesture": "wave", "card": {"kind": "comment", "keyword": keyword},
              "text": f"Comment {keyword} and I will send you the link. "
                      f"Follow for one hidden gem every single day."},
         ]
@@ -140,7 +140,7 @@ def fallback_script(topic: dict | None, keyword: str, cfg: dict) -> dict:
                      "The second one turns any video into a template."},
             {"gesture": "think", "card": {"kind": "plain"},
              "text": "And the third one is so new that almost nobody has found it yet."},
-            {"gesture": "wave", "card": {"kind": "plain"},
+            {"gesture": "wave", "card": {"kind": "comment", "keyword": keyword},
              "text": f"Comment {keyword} and I will send you all three. Follow so you don't miss the next drop."},
         ]
         title_words = "3 FREE AI TOOLS"
@@ -338,7 +338,7 @@ Rules:
 - "highlight" = 1-3 WORDS from that segment's text to accent-color on screen.
 - "gesture" per segment, one of: point, chest (hand-on-chest), thumbs, shrug, wave, think, spread (arms wide).
 - "card.kind" per segment, one of: repo (segment 1), stats (a big number), terminal (2-3 shell lines), list (2-3 short items), demo (a "Claude Code builds the video" terminal with a progress bar and timeline - use for exactly ONE middle segment), plain.
-- Use "plain" at most once, only for the final CTA. Middle segments prefer stats, terminal, list or demo. Always FILL the fields a kind needs (stats: big+label, terminal: lines, list: items, repo: name+stars+desc+lang, demo: cmd).
+- Use "comment" (with field keyword="{keyword}") for the final CTA only — that scene shows the comment box typing the keyword and hitting send. Middle segments prefer stats, terminal, list or demo. Always FILL the fields a kind needs (stats: big+label, terminal: lines, list: items, repo: name+stars+desc+lang, demo: cmd, comment: keyword).
 
 Respond with ONLY valid JSON, no markdown:
 {{
@@ -445,6 +445,10 @@ def llm_script(topic: dict, keyword: str, cfg: dict, seed: int) -> dict | None:
     # "comment comments" over a WRANGLE gate, which the chip then rendered.
     if clean and keyword and keyword.lower() in clean[-1]["text"].lower():
         clean[-1]["highlight"] = keyword
+    # The CTA is always the comment-box scene (typed keyword + send submit) —
+    # force the card kind even when the LLM answers "plain".
+    if clean:
+        clean[-1]["card"] = {"kind": "comment", "keyword": keyword}
     # viewer rule: never speak or show the owner's username - short name only
     names = [topic["name"]]
     for c in clean:
