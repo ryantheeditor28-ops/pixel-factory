@@ -43,7 +43,11 @@
     "Indigo-0167/universal-game-mod-manager",
     "Belobug/VIctory-Belobug-AMD",
     "ItsNotRexed/Hookshot",
-    "Avaneesh-Inamdar/Stream-Tube-Desktop"
+    "Avaneesh-Inamdar/Stream-Tube-Desktop",
+    "listicle:MSNightmare/FastUnlock+chanke17/KuroCat+Nebula4207/av1-video-encoder-gui",
+    "MSNightmare/FastUnlock",
+    "chanke17/KuroCat",
+    "Nebula4207/av1-video-encoder-gui"
   ],
   "videos": [
     {
@@ -185,6 +189,13 @@
       "source": "llm",
       "format": "single",
       "title": "Native YouTube Reimagined"
+    },
+    {
+      "stamp": "20261126-0405",
+      "topic": "listicle:MSNightmare/FastUnlock+chanke17/KuroCat+Nebula4207/av1-video-encoder-gui",
+      "source": "llm",
+      "format": "listicle",
+      "title": "FREE TECH TRIUMPH"
     }
   ]
 }
