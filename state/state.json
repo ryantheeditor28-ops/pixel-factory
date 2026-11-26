@@ -49,7 +49,11 @@
     "chanke17/KuroCat",
     "Nebula4207/av1-video-encoder-gui",
     "avatarmanz/VIctory-7900XTX",
-    "qianyiai/KuroCat"
+    "qianyiai/KuroCat",
+    "listicle:lsernau/grh-lean+Reukix/Reloc+Basil0879/steam-game-idler",
+    "lsernau/grh-lean",
+    "Reukix/Reloc",
+    "Basil0879/steam-game-idler"
   ],
   "videos": [
     {
@@ -218,6 +222,13 @@
       "source": "llm",
       "format": "single",
       "title": "Cat Code Companion"
+    },
+    {
+      "stamp": "20261126-2206",
+      "topic": "listicle:lsernau/grh-lean+Reukix/Reloc+Basil0879/steam-game-idler",
+      "source": "fallback",
+      "format": "listicle",
+      "title": "3 FREE TOOLS"
     }
   ]
 }
