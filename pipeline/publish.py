@@ -299,6 +299,7 @@ def yt_post(video: Path, caption: str) -> dict:
     lines = [ln.strip() for ln in caption.splitlines() if ln.strip()]
     title = (lines[0] if lines else video.stem)[:YT_TITLE_MAX]
     description = "\n".join(lines[1:])[:YT_DESC_MAX] or title
+    privacy = (env("YT_PRIVACY") or "public").lower()
 
     r = req("POST",
             "https://www.googleapis.com/upload/youtube/v3/videos"
@@ -310,7 +311,7 @@ def yt_post(video: Path, caption: str) -> dict:
                     "categoryId": YT_CATEGORY_TECH,
                 },
                 "status": {
-                    "privacyStatus": "public",
+                    "privacyStatus": privacy,
                     "selfDeclaredMadeForKids": False,
                 },
             },
@@ -364,6 +365,7 @@ def main() -> int:
     ap.add_argument("--video", type=Path, default=None, help="mp4 to post (default: newest out/*.mp4)")
     ap.add_argument("--caption", default=None, help="caption text (default: from build/script.json)")
     ap.add_argument("--platforms", default="fb,ig,yt", help="comma list: fb,ig,yt")
+    ap.add_argument("--privacy", default=None, help="YT privacy: public (default) / unlisted / private")
     args = ap.parse_args()
 
     video = args.video
@@ -376,6 +378,10 @@ def main() -> int:
     if not video.exists():
         print(f"[publish] video not found: {video}")
         return 1
+
+    if args.privacy:
+        import os
+        os.environ["YT_PRIVACY"] = args.privacy
 
     caption = args.caption
     if caption is None:
