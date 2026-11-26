@@ -14,6 +14,7 @@ import datetime as dt
 import json
 import os
 import random
+import re
 import urllib.parse
 import urllib.request
 
@@ -216,6 +217,8 @@ Rules:
   realistic combined USD monthly cost of the paid equivalents, like "$148".
 - Segments 2..{ntools}: ONE tool each, in order. Card kind "tool" with n={seq} and that
   repo's fields. Say "Number 1/2/3" out loud. One surprising or concrete detail each.
+- NEVER say or write the repo's owner/username - use ONLY the repo's short name
+  (the part after the "/"), e.g. "neonclipping", never "iamajmeena/neonclipping".
 - Final segment: CTA with card kind "comment" telling viewers to comment "{keyword}".
 - "highlight" = 1-3 WORDS from that segment's text to accent on screen.
 - "gesture" per segment, one of: point, chest (hand-on-chest), thumbs, shrug, wave, think, spread (arms wide).
@@ -291,7 +294,12 @@ def llm_list_script(topics: list[dict], keyword: str, cfg: dict, seed: int) -> d
             "gesture": "wave", "highlight": keyword, "card": {"kind": "comment", "keyword": keyword},
             "text": f"Comment {keyword} and I will send you all {n} links. Follow for one drop every day.",
         }]
-    title = _scrub(data.get("title", ""))[:30] or f"{n} FREE TOOLS"
+    # viewer rule: never speak or show the owner's username - short name only
+    names = [t["name"] for t in topics]
+    for c in clean:
+        c["text"] = _short_refs(c["text"], names)
+        c["highlight"] = _short_refs(c["highlight"], names)
+    title = _short_refs(_scrub(data.get("title", ""))[:30], names) or f"{n} FREE TOOLS"
     return {
         "format": "listicle",
         "topic_id": "listicle:" + "+".join(t["id"] for t in topics),
@@ -323,6 +331,8 @@ Rules:
   hedge — no "maybe", "perhaps", "I think", "kind of". No filler words.
 - Segment 1 is the HOOK: bold claim about the repo, no greeting, no intro.
 - Middle segments: what it does, why it is blowing up, one surprising detail.
+- NEVER say or write the repo's owner/username - use ONLY the short repo name
+  (the part after the "/") everywhere: spoken text, highlight, and titles.
 - Final segment: CTA telling viewers to comment "{keyword}" to get the link + follow.
 - Spoken text only in "text" fields: plain words, numbers as words where natural.
 - "highlight" = 1-3 WORDS from that segment's text to accent-color on screen.
@@ -348,6 +358,23 @@ def _scrub(t) -> str:
     s = str(t).replace("\ufffd", " ").replace("\u2011", "-") \
              .replace("\u2013", "-").replace("\u2014", "-")
     return " ".join(s.split())
+
+
+def _short_refs(text: str, names: list[str]) -> str:
+    """Viewer rule: the owner's username is noise — speak and show ONLY the
+    repo's short name. Collapses 'owner/repo', 'owner / repo' and the spoken
+    'owner slash repo' down to the short name (case-insensitive)."""
+    if not text:
+        return text
+    for full in names:
+        if not isinstance(full, str) or "/" not in full:
+            continue
+        owner, short = full.split("/", 1)
+        text = re.sub(re.escape(owner) + r"\s*/\s*" + re.escape(short),
+                      short, text, flags=re.I)
+        text = re.sub(re.escape(owner) + r"\s+slash\s+" + re.escape(short),
+                      short, text, flags=re.I)
+    return text
 
 
 def _trim_words(s: str, limit: int) -> str:
@@ -418,7 +445,13 @@ def llm_script(topic: dict, keyword: str, cfg: dict, seed: int) -> dict | None:
     # "comment comments" over a WRANGLE gate, which the chip then rendered.
     if clean and keyword and keyword.lower() in clean[-1]["text"].lower():
         clean[-1]["highlight"] = keyword
-    title = _scrub(data.get("title", ""))[:30] or topic["name"].split("/")[-1].upper()
+    # viewer rule: never speak or show the owner's username - short name only
+    names = [topic["name"]]
+    for c in clean:
+        c["text"] = _short_refs(c["text"], names)
+        c["highlight"] = _short_refs(c["highlight"], names)
+    title = _short_refs(_scrub(data.get("title", ""))[:30], names) \
+        or topic["name"].split("/")[-1].upper()
     return {
         "topic_id": topic["id"],
         "title": title,
