@@ -2,16 +2,19 @@ name: factory
 
 # Makes one original faceless video per run, $0: free LLM (pollinations),
 # free TTS (edge-tts), free lip sync (rhubarb), free render (hyperframes CLI).
-# GitHub's own cron is flaky — it's the third trigger here; wire cron-job.org
-# to workflow_dispatch for the reliable layer (same pattern as grand6-loop).
+# Fully cloud-hosted: GitHub runners render + publish; triggers are layered -
+# cron-job.org "Pixel Guy loop" (workflow_dispatch, primary) then these
+# guarded GitHub cron slots as backup when the primary's run didn't succeed.
 
 on:
   schedule:
-    - cron: "17 */6 * * *"   # primary: every 6h at :17 UTC (drifts a few min; that's normal)
-    - cron: "47 */6 * * *"   # backup slot 30 min later: GitHub cron skips slots (missed 4 hourly
-                             # windows straight on 11/25) - a skipped primary would mean a 12h
-                             # gap. Whichever slot fires first posts; the other no-ops via the
-                             # recent-run guard below, so still exactly ~1 video per 6h window.
+    # BACKUP layer only: cron-job.org job "Pixel Guy loop" is the primary - it
+    # POSTs workflow_dispatch at 00:00/06:00/12:00/18:00 Asia/Manila
+    # (= 04:00/10:00/16:00/22:00 UTC). These slots sit 30 min behind it and are
+    # guarded: they render only if no factory run succeeded in the last 3h
+    # (GitHub cron skips slots - missed 4 hourly windows straight on 11/25 -
+    # and the same protection keeps the two layers from double-posting).
+    - cron: "30 4,10,16,22 * * *"
   workflow_dispatch: {}
 
 permissions:
