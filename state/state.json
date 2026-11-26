@@ -47,7 +47,8 @@
     "listicle:MSNightmare/FastUnlock+chanke17/KuroCat+Nebula4207/av1-video-encoder-gui",
     "MSNightmare/FastUnlock",
     "chanke17/KuroCat",
-    "Nebula4207/av1-video-encoder-gui"
+    "Nebula4207/av1-video-encoder-gui",
+    "avatarmanz/VIctory-7900XTX"
   ],
   "videos": [
     {
@@ -196,6 +197,13 @@
       "source": "llm",
       "format": "listicle",
       "title": "FREE TECH TRIUMPH"
+    },
+    {
+      "stamp": "20261126-1003",
+      "topic": "avatarmanz/VIctory-7900XTX",
+      "source": "llm",
+      "format": "single",
+      "title": "RX 7900 XTX Hack"
     }
   ]
 }
