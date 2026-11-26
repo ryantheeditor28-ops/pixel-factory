@@ -7,11 +7,16 @@ name: factory
 
 on:
   schedule:
-    - cron: "17 */6 * * *"   # every 6h at :17 UTC (drifts a few min; that's normal)
+    - cron: "17 */6 * * *"   # primary: every 6h at :17 UTC (drifts a few min; that's normal)
+    - cron: "47 */6 * * *"   # backup slot 30 min later: GitHub cron skips slots (missed 4 hourly
+                             # windows straight on 11/25) - a skipped primary would mean a 12h
+                             # gap. Whichever slot fires first posts; the other no-ops via the
+                             # recent-run guard below, so still exactly ~1 video per 6h window.
   workflow_dispatch: {}
 
 permissions:
   contents: write
+  actions: read   # backup-slot guard reads recent factory runs
 
 concurrency:
   group: factory
@@ -78,13 +83,33 @@ jobs:
             ~/.cache/hyperframes
           key: hf-${{ runner.os }}-0.9.56
 
+      - name: Backup-slot guard (scheduled runs only)
+        id: gate
+        if: github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Skip this scheduled run if another factory run within the last 3h
+          # already succeeded or is still working (manual dispatches always run).
+          SINCE=$(date -u -d '3 hours ago' +%Y-%m-%dT%H:%M:%SZ)
+          RECENT=$(gh api "repos/${{ github.repository }}/actions/runs?per_page=40" \
+            --jq "[.workflow_runs[] | select(.id != ${{ github.run_id }} and .name == \"factory\" and .created_at > \"${SINCE}\" and (.status == \"in_progress\" or .status == \"queued\" or .conclusion == \"success\"))] | length")
+          echo "recent factory runs inside the 3h window: ${RECENT}"
+          if [ "${RECENT}" -gt 0 ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Make one video
+        if: steps.gate.outputs.skip != 'true'
         env:
           # raises the GitHub search API limit on shared runner IPs (trending picks)
           GITHUB_TOKEN: ${{ github.token }}
         run: python pipeline/make_video.py
 
       - name: Publish video as a release
+        if: steps.gate.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -94,6 +119,7 @@ jobs:
             --notes "Automated original faceless video (pixel guy + edge-tts + rhubarb + hyperframes)."
 
       - name: Post to Facebook + Instagram
+        if: steps.gate.outputs.skip != 'true'
         env:
           FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
           FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
@@ -108,6 +134,7 @@ jobs:
         run: python pipeline/publish.py   # skips platforms whose secrets are unset
 
       - name: Commit state (used topics)
+        if: steps.gate.outputs.skip != 'true'
         run: |
           git config user.name "pixel-factory"
           git config user.email "actions@users.noreply.github.com"
