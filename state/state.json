@@ -38,7 +38,11 @@
     "Developing-Gamer/agent-sim",
     "solv4626/steam-achievement-manager-windows",
     "umbradev315/ffmpeg-video-audio-converter",
-    "leanprover-community/riemann-hypothesis"
+    "leanprover-community/riemann-hypothesis",
+    "listicle:Indigo-0167/universal-game-mod-manager+Belobug/VIctory-Belobug-AMD+ItsNotRexed/Hookshot",
+    "Indigo-0167/universal-game-mod-manager",
+    "Belobug/VIctory-Belobug-AMD",
+    "ItsNotRexed/Hookshot"
   ],
   "videos": [
     {
@@ -166,6 +170,13 @@
       "source": "fallback",
       "format": "single",
       "title": "RIEMANN-HYPOTHESIS"
+    },
+    {
+      "stamp": "20261126-0247",
+      "topic": "listicle:Indigo-0167/universal-game-mod-manager+Belobug/VIctory-Belobug-AMD+ItsNotRexed/Hookshot",
+      "source": "llm",
+      "format": "listicle",
+      "title": "FREE GIT REPOS"
     }
   ]
 }
