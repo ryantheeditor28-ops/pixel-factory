@@ -37,7 +37,8 @@
     "listicle:Developing-Gamer/agent-sim+solv4626/steam-achievement-manager-windows+umbradev315/ffmpeg-video-audio-converter",
     "Developing-Gamer/agent-sim",
     "solv4626/steam-achievement-manager-windows",
-    "umbradev315/ffmpeg-video-audio-converter"
+    "umbradev315/ffmpeg-video-audio-converter",
+    "leanprover-community/riemann-hypothesis"
   ],
   "videos": [
     {
@@ -158,6 +159,13 @@
       "source": "llm",
       "format": "listicle",
       "title": "$148 Savings"
+    },
+    {
+      "stamp": "20261126-0151",
+      "topic": "leanprover-community/riemann-hypothesis",
+      "source": "fallback",
+      "format": "single",
+      "title": "RIEMANN-HYPOTHESIS"
     }
   ]
 }
