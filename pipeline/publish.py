@@ -34,6 +34,14 @@ from pathlib import Path
 
 import requests
 
+# Windows consoles default to a legacy codepage (cp1252) and crash on emoji in
+# captions; CI runners are UTF-8. Force UTF-8 with replacement everywhere.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 ROOT = Path(__file__).resolve().parent.parent
 GRAPH_VERSION = "v21.0"          # valid until Jan 21, 2027; override via GRAPH_VERSION env
 CAPTION_MAX = 2200
