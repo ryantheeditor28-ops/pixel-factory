@@ -147,8 +147,8 @@ def _card_html(card: dict, uid: str) -> str:
   <div class="cw-head"><span class="cw-dot r"></span><span class="cw-dot y"></span><span class="cw-dot g"></span><span class="cw-title">github.com</span></div>
   <div class="cw-body">
     <div class="cw-reponame">{GITHUB_SVG}<span>{name}</span></div>
-    <div class="cw-desc">{desc}</div>
-    <div class="cw-foot"><span class="cw-stars">{STAR_SVG}<span>{stars}</span></span>{lang_row}</div>
+    <div id="{uid}-repodesc" class="cw-desc">{desc}</div>
+    <div class="cw-foot"><span class="cw-stars">{STAR_SVG}<span id="{uid}-repostars">{stars}</span></span>{lang_row}</div>
   </div>
 </div>'''
     if kind == "stats":
@@ -222,14 +222,15 @@ def _card_html(card: dict, uid: str) -> str:
         short = name.split("/")[-1] if "/" in str(card.get("name", "")) else str(card.get("name", ""))
         tile = _esc((short[:1] or "R").upper())
         rows = "".join(
-            f'<div id="{uid}-mock{j}" class="cw-skrow" style="width:{w}%"></div>'
+            f'<div id="{uid}-mock{j}" class="cw-skrow" style="width:{w}%">'
+            f'<i class="cw-skshine"></i></div>'
             for j, w in enumerate((78, 56, 66)))
         return f'''<div id="{uid}-card" class="clip hf-card" data-start="__CARDSTART__" data-duration="__CDUR__">
-  <div class="cw-toolhead"><span class="cw-toolnum">#{n}</span><span class="cw-tooltile">{tile}</span>
-    <div class="cw-toolmeta"><div class="cw-toolname">{short}</div><div class="cw-tooldesc">{desc}</div></div></div>
+  <div class="cw-toolhead"><span id="{uid}-toolnum" class="cw-toolnum">#{n}</span><span id="{uid}-tooltile" class="cw-tooltile">{tile}</span>
+    <div class="cw-toolmeta"><div class="cw-toolname">{short}</div><div id="{uid}-tooldesc" class="cw-tooldesc">{desc}</div></div></div>
   <div class="cw-toolmock">{rows}</div>
   <div class="cw-toolfoot"><span id="{uid}-osschip" class="cw-osschip">✓ Open source</span>
-    <span class="cw-toolstars">{STAR_SVG}<span>{stars}</span></span></div>
+    <span class="cw-toolstars">{STAR_SVG}<span id="{uid}-starcount">{stars}</span></span></div>
 </div>'''
     if kind == "comment":
         # listicle CTA: the winner's comment-input mockup with the keyword gate
@@ -334,7 +335,9 @@ SCENE_CSS = """
   .cw-toolname { font:800 38px/1.1 'Inter'; color:#0e1220; word-break:break-word; }
   .cw-tooldesc { margin-top:10px; font:500 27px/1.3 'Inter'; color:#3d4356; }
   .cw-toolmock { background:#ffffff; padding:4px 34px 0; }
-  .cw-skrow { height:20px; border-radius:10px; background:#eef0f6; margin-bottom:14px; opacity:0; }
+  .cw-skrow { position:relative; overflow:hidden; height:20px; border-radius:10px; background:#eef0f6; margin-bottom:14px; opacity:0; }
+  .cw-skshine { position:absolute; top:0; bottom:0; left:0; width:34%; border-radius:10px;
+    background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.92),rgba(255,255,255,0)); }
   .cw-toolfoot { display:flex; align-items:center; gap:18px; padding:8px 34px 34px;
     background:#ffffff; border-radius:0 0 26px 26px; }
   .cw-osschip { display:inline-flex; align-items:center; gap:10px; padding:14px 26px;
@@ -479,6 +482,53 @@ def _scene_html(idx: int, scene: dict, tl_data: dict, lead: float) -> str:
             f'  tl.fromTo("#{uid}-osschip",{{scale:0.6,opacity:0}},'
             f'{{scale:1,opacity:1,duration:0.30,ease:"back.out(2.2)",immediateRender:false}},'
             f'{t + 0.05:.2f});')
+        # motion graphics while the narration explains what the repo does:
+        # the description wipes in, the info rows shimmer on a loop, the star
+        # count ticks up, the app tile floats, the #N badge pings. All tweens
+        # are bounded-repeat (seek-safe for the frame-accurate render).
+        t_expl = t + 0.35  # after the Open-source chip lands
+        listicle_tl.append(
+            f'  tl.set("#{uid}-tooldesc",{{clipPath:"inset(-6% 100% -6% 0)"}},{card_start + 0.01:.2f});')
+        listicle_tl.append(
+            f'  tl.to("#{uid}-tooldesc",{{clipPath:"inset(-6% 0% -6% 0)",duration:0.9,ease:"power2.out"}},{t_expl:.2f});')
+        stars_raw = str((scene.get("card") or {}).get("stars", "")).replace(",", "").strip()
+        if stars_raw.isdigit():
+            listicle_tl.append(
+                f'  tl.set("#{uid}-starcount",{{innerText:0}},{card_start + 0.01:.2f});')
+            listicle_tl.append(
+                f'  tl.to("#{uid}-starcount",{{innerText:{int(stars_raw)},snap:"innerText",'
+                f'duration:0.9,ease:"power1.out"}},{t_expl:.2f});')
+        t_shine = card_start + 1.15
+        loop = max(int((max(duration - 0.35, t_shine + 1.2) - t_shine) / 1.15), 1)
+        for j in range(3):
+            listicle_tl.append(
+                f'  tl.fromTo("#{uid}-mock{j} .cw-skshine",{{xPercent:-150}},'
+                f'{{xPercent:330,duration:0.85,ease:"power1.inOut",repeat:{loop},repeatDelay:0.30}},'
+                f'{t_shine + j * 0.22:.2f});')
+        fl = max(int((duration - card_start - 1.2) / 1.0), 1) * 2
+        listicle_tl.append(
+            f'  tl.to("#{uid}-tooltile",{{y:-9,duration:1.0,yoyo:true,repeat:{fl},'
+            f'ease:"sine.inOut",immediateRender:false}},{card_start + 1.20:.2f});')
+        listicle_tl.append(
+            f'  tl.fromTo("#{uid}-toolnum",{{scale:1}},'
+            f'{{scale:1.14,duration:0.42,yoyo:true,repeat:3,ease:"sine.inOut",immediateRender:false}},'
+            f'{card_start + 1.30:.2f});')
+    if kind == "repo":
+        # same explain-time motion on the single-mode GitHub card: description
+        # wipes in as the narration reads it, stars tick up from 0
+        t_expl = card_start + 0.85
+        cardtl = [
+            f'  tl.set("#{uid}-repodesc",{{clipPath:"inset(-6% 100% -6% 0)"}},{card_start + 0.01:.2f});',
+            f'  tl.to("#{uid}-repodesc",{{clipPath:"inset(-6% 0% -6% 0)",duration:0.9,ease:"power2.out"}},{t_expl:.2f});',
+        ]
+        stars_raw = str((scene.get("card") or {}).get("stars", "")).replace(",", "").strip()
+        if stars_raw.isdigit():
+            cardtl.append(
+                f'  tl.set("#{uid}-repostars",{{innerText:0}},{card_start + 0.01:.2f});')
+            cardtl.append(
+                f'  tl.to("#{uid}-repostars",{{innerText:{int(stars_raw)},snap:"innerText",'
+                f'duration:0.9,ease:"power1.out"}},{t_expl:.2f});')
+        listicle_tl.extend(cardtl)
     if is_listicle and kind == "comment":
         # pulse the send button exactly when the shot plan's finale impact lands
         t_hit = max(duration - 0.50, card_start + 0.30)

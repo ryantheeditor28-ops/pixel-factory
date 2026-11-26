@@ -5,7 +5,8 @@ identical in every video, and fully automatable. Style-matched to the family-2
 reference character: orange baseball cap, curly side hair, big round ears, thick
 brows, cream crew-neck sweater with a red chest emblem and striped cuffs, grainy
 sketch texture. Gestures follow the reference's action vocabulary: point-up,
-hand-on-chest, arms-spread, thinking, shrug, wave, thumbs. Kid-safe open hands.
+hand-on-chest, arms-spread, thinking, shrug, wave, fist pump. Kid-safe MITTEN
+hands — zero fingers anywhere (raised hands sit clear of the head).
 
 Produces:
   assets/character/<pose>.png   transparent sprites (idle, point, chest, thumbs,
@@ -103,17 +104,11 @@ def _limb(d, p0, p1, w0, w1, fill):
         d.line([a, b], fill=col, width=4)
 
 
-def _hand(d, cx, cy, r=26, spread=False, fingers=True):
-    """Skin hand with ink outline; optionally an open hand with spread fingers
-    (kid-safe: never a lone raised finger)."""
-    if fingers and spread:
-        for ang in (-64, -32, 0, 26):
-            a = math.radians(ang - 90)
-            x0, y0 = cx + math.cos(a) * r * 0.55, cy + math.sin(a) * r * 0.55
-            x1, y1 = cx + math.cos(a) * (r + 20), cy + math.sin(a) * (r + 20)
-            d.line([(x0, y0), (x1, y1)], fill=INK, width=15)
-            d.line([(x0, y0), (x1, y1)], fill=SKIN, width=9)
-    _sketch_ellipse(d, cx, cy, r, r * 0.92, SKIN, width=5, amt=1.5, n=28)
+def _hand(d, cx, cy, r=26):
+    """Mitten hand: one soft rounded shape with ZERO fingers. The skinny finger
+    nubs read as clutter at video size (and stabbed into the head when raised) —
+    a clean mitt reads instantly at every scale and stays kid-safe."""
+    _sketch_ellipse(d, cx, cy, r, r * 0.9, SKIN, width=5, amt=1.5, n=28)
 
 
 def _hatch(d, x, y, n, ang_deg, ln=26, color=INK, width=3, gap=9):
@@ -244,11 +239,12 @@ def pose_idle():
 def pose_point():
     def arms(d):
         _limb(d, (240, 375), (226, 492), 17, 13, SWEATER)
-        _limb(d, (400, 375), (468, 190), 17, 12, SWEATER)
+        _limb(d, (400, 375), (512, 248), 17, 12, SWEATER)
 
     def hand(d):
-        _hand(d, 478, 156, r=27, spread=True, fingers=True)
-        _sketch_ellipse(d, 452, 172, 9, 7, SKIN, width=4, amt=1.0, n=20)  # thumb nub
+        # raised BESIDE the head (clear of cap, ear and cheek — the old spot
+        # stamped the hand on top of the temple), a clean mitten, no fingers
+        _hand(d, 538, 204, r=25)
 
     return _render("point", arms, [hand])
 
@@ -270,13 +266,14 @@ def pose_shrug():
 def pose_wave():
     def arms(d):
         _limb(d, (240, 375), (226, 492), 17, 13, SWEATER)
-        _limb(d, (400, 375), (458, 205), 17, 12, SWEATER)
+        _limb(d, (400, 375), (504, 258), 17, 12, SWEATER)
 
     def hand(d):
-        _hand(d, 470, 172, r=27, spread=True, fingers=True)
+        _hand(d, 536, 212, r=25)  # beside the head, clear of ear/cap — mitten
 
     def extras(d):
-        for i, (x, y) in enumerate(((416, 148), (402, 184))):
+        # motion arcs in the open air to the right of the hand
+        for i, (x, y) in enumerate(((560, 168), (566, 204))):
             d.arc([x, y, x + 26, y + 30], start=300 - i * 20, end=360 - i * 20,
                   fill=INK, width=3)
 
@@ -289,10 +286,8 @@ def pose_think():
         _limb(d, (400, 375), (392, 318), 16, 11, SWEATER)
 
     def hand(d):
-        # hand at the CHEEK (hmm-pose) — clear of the mouth overlay box
-        _sketch_ellipse(d, 396, 292, 22, 19, SKIN, width=5, amt=1.5, n=28)
-        d.line([_j((392, 280), 1.0), _j((380, 262), 1.0)], fill=INK, width=13)
-        d.line([_j((392, 280), 1.0), _j((380, 262), 1.0)], fill=SKIN, width=8)
+        # mitten resting at the jaw edge (hmm-pose) — clear of the mouth box
+        _sketch_ellipse(d, 404, 300, 22, 19, SKIN, width=5, amt=1.5, n=28)
 
     return _render("think", arms, [hand])
 
@@ -311,13 +306,11 @@ def pose_chest():
 def pose_thumbs():
     def arms(d):
         _limb(d, (240, 375), (226, 492), 17, 13, SWEATER)
-        _limb(d, (400, 380), (418, 288), 17, 13, SWEATER)
+        _limb(d, (400, 380), (452, 302), 17, 13, SWEATER)
 
     def hand(d):
-        _sketch_ellipse(d, 422, 264, 24, 21, SKIN, width=5, amt=1.5, n=28)
-        # thumb up: sketched stub (ink edge + skin fill), no cuff line
-        d.line([_j((424, 252), 1.0), _j((428, 216), 1.0)], fill=INK, width=15)
-        d.line([_j((424, 252), 1.0), _j((428, 216), 1.0)], fill=SKIN, width=9)
+        # raised fist pump beside the jaw — no thumb stub (zero-finger rule)
+        _sketch_ellipse(d, 470, 282, 24, 21, SKIN, width=5, amt=1.5, n=28)
 
     return _render("thumbs", arms, [hand])
 
