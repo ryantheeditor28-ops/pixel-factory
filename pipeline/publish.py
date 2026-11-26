@@ -1,11 +1,11 @@
-"""Publish a finished video to Facebook Page Reels + Instagram Reels.
+"""Publish a finished video to Facebook Page Reels + Instagram Reels + YouTube.
 
 Lifted from the proven GTA6 clip-agency posters (same Graph API flows), trimmed
 for pixel-factory: one mp4 in, posts out — no package/queue machinery.
 
   python pipeline/publish.py                        # newest out/*.mp4, caption from build/script.json
   python pipeline/publish.py --platforms fb         # facebook only
-  python pipeline/publish.py --platforms fb,ig --video out/x.mp4 --caption "..."
+  python pipeline/publish.py --platforms fb,ig,yt --video out/x.mp4 --caption "..."
 
 Platform env (same names as the GTA6 project / clip-agency/.env, so secrets
 copy over 1:1):
@@ -13,6 +13,8 @@ copy over 1:1):
   Instagram: IG_ACCESS_TOKEN, IG_USER_ID, IG_PUBLIC_URL_BASE
              (+ SigV4 host: IG_UPLOAD_ENDPOINT, IG_UPLOAD_ACCESS_KEY,
               IG_UPLOAD_SECRET_KEY, IG_UPLOAD_REGION default "auto")
+  YouTube  : YT_CLIENT_ID, YT_CLIENT_SECRET, YT_REFRESH_TOKEN
+             (mint with: python pipeline/yt_token.py — one consent flow per channel)
 
 Missing variables -> that platform is skipped with a note and exit 0, so CI
 can ship the GitHub Release even before credentials are wired. A real API
@@ -265,6 +267,78 @@ def ig_post(video: Path, caption: str) -> dict:
     return {"url": f"https://www.instagram.com/reel/{media_id}/", "post_id": media_id}
 
 
+# ---- youtube (Data API v3 resumable upload; refresh-token -> access token) ---
+
+YT_TITLE_MAX = 100          # YouTube hard limit
+YT_DESC_MAX = 5000
+YT_CATEGORY_TECH = "28"     # Science & Technology
+
+
+def yt_configured() -> bool:
+    return bool(env("YT_CLIENT_ID") and env("YT_CLIENT_SECRET") and env("YT_REFRESH_TOKEN"))
+
+
+def yt_access_token() -> str:
+    r = req("POST", "https://oauth2.googleapis.com/token", data={
+        "client_id": env("YT_CLIENT_ID"),
+        "client_secret": env("YT_CLIENT_SECRET"),
+        "refresh_token": env("YT_REFRESH_TOKEN"),
+        "grant_type": "refresh_token",
+    })
+    if r.status_code >= 400:
+        raise PublishError(f"yt token refresh: HTTP {r.status_code}: {snippet(r)}")
+    token = str((r.json() or {}).get("access_token") or "")
+    if not token:
+        raise PublishError(f"yt token refresh returned no access_token: {snippet(r)}")
+    return token
+
+
+def yt_post(video: Path, caption: str) -> dict:
+    """Resumable upload; caption's first line becomes the title, rest the description."""
+    token = yt_access_token()
+    lines = [ln.strip() for ln in caption.splitlines() if ln.strip()]
+    title = (lines[0] if lines else video.stem)[:YT_TITLE_MAX]
+    description = "\n".join(lines[1:])[:YT_DESC_MAX] or title
+
+    r = req("POST",
+            "https://www.googleapis.com/upload/youtube/v3/videos"
+            "?uploadType=resumable&part=snippet,status",
+            json={
+                "snippet": {
+                    "title": title,
+                    "description": description,
+                    "categoryId": YT_CATEGORY_TECH,
+                },
+                "status": {
+                    "privacyStatus": "public",
+                    "selfDeclaredMadeForKids": False,
+                },
+            },
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json; charset=UTF-8",
+                "X-Upload-Content-Type": "video/mp4",
+                "X-Upload-Content-Length": str(video.stat().st_size),
+            })
+    if r.status_code >= 400:
+        raise PublishError(f"yt session start: HTTP {r.status_code}: {snippet(r)}")
+    session_url = r.headers.get("Location") or ""
+    if not session_url:
+        raise PublishError(f"yt session start returned no Location header: {snippet(r)}")
+
+    with video.open("rb") as fh:
+        r = req("PUT", session_url, data=fh.read(), timeout=600, headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "video/mp4",
+        })
+    if r.status_code >= 400:
+        raise PublishError(f"yt upload: HTTP {r.status_code}: {snippet(r)}")
+    video_id = str((r.json() or {}).get("id") or "")
+    if not video_id:
+        raise PublishError(f"yt upload returned no video id: {snippet(r)}")
+    return {"url": f"https://www.youtube.com/watch?v={video_id}", "post_id": video_id}
+
+
 # ---- state + main ------------------------------------------------------------
 
 def record(video: Path, platform: str, url: str) -> None:
@@ -289,7 +363,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Post the latest video to FB + IG")
     ap.add_argument("--video", type=Path, default=None, help="mp4 to post (default: newest out/*.mp4)")
     ap.add_argument("--caption", default=None, help="caption text (default: from build/script.json)")
-    ap.add_argument("--platforms", default="fb,ig", help="comma list: fb,ig")
+    ap.add_argument("--platforms", default="fb,ig,yt", help="comma list: fb,ig,yt")
     args = ap.parse_args()
 
     video = args.video
@@ -347,6 +421,22 @@ def main() -> int:
             except PublishError as exc:
                 failures += 1
                 print(f"[publish] instagram FAILED: {exc}")
+        elif p == "yt":
+            if not yt_configured():
+                print("[publish] youtube: skipped (YT_CLIENT_ID / YT_CLIENT_SECRET / YT_REFRESH_TOKEN not set)")
+                continue
+            try:
+                res = yt_post(video, caption)
+                record(video, "youtube", res["url"])
+                try:
+                    import comment_bot
+                    comment_bot.record_post("youtube", res["post_id"], res["url"], video.name)
+                except Exception as exc:
+                    print(f"[publish] registry write skipped: {exc}")
+                print(f"[publish] youtube OK -> {res['url']}")
+            except PublishError as exc:
+                failures += 1
+                print(f"[publish] youtube FAILED: {exc}")
         else:
             print(f"[publish] unknown platform '{p}' ignored")
 

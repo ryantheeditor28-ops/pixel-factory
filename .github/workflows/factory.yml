@@ -121,7 +121,7 @@ jobs:
           gh release create "$TAG" "$FILE" --title "$TAG" \
             --notes "Automated original faceless video (pixel guy + edge-tts + rhubarb + hyperframes)."
 
-      - name: Post to Facebook + Instagram
+      - name: Post to Facebook + Instagram + YouTube
         if: steps.gate.outputs.skip != 'true'
         env:
           FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
@@ -133,6 +133,9 @@ jobs:
           IG_UPLOAD_ACCESS_KEY: ${{ secrets.IG_UPLOAD_ACCESS_KEY }}
           IG_UPLOAD_SECRET_KEY: ${{ secrets.IG_UPLOAD_SECRET_KEY }}
           IG_UPLOAD_REGION: ${{ secrets.IG_UPLOAD_REGION }}
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
           HASHTAGS: ${{ vars.HASHTAGS }}
         run: python pipeline/publish.py   # skips platforms whose secrets are unset
 
