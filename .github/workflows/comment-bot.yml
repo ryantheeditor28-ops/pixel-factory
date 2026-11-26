@@ -8,7 +8,11 @@ name: comment-bot
 
 on:
   schedule:
-    - cron: "23 * * * *"   # hourly at :23 UTC (offset from the factory's :17)
+    # GitHub's cron skips slots (missed 4 hourly windows straight on 11/25), so
+    # the bot fires twice an hour: extra runs are harmless no-ops (dm_log dedupe
+    # means nothing to commit when no keyword comments are pending).
+    - cron: "23 * * * *"
+    - cron: "53 * * * *"
   workflow_dispatch: {}
 
 permissions:
