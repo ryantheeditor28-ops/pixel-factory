@@ -53,7 +53,8 @@
     "listicle:lsernau/grh-lean+Reukix/Reloc+Basil0879/steam-game-idler",
     "lsernau/grh-lean",
     "Reukix/Reloc",
-    "Basil0879/steam-game-idler"
+    "Basil0879/steam-game-idler",
+    "nexu-io/opengame"
   ],
   "videos": [
     {
@@ -229,6 +230,13 @@
       "source": "fallback",
       "format": "listicle",
       "title": "3 FREE TOOLS"
+    },
+    {
+      "stamp": "20261127-0404",
+      "topic": "nexu-io/opengame",
+      "source": "llm",
+      "format": "single",
+      "title": "AI Game Studio"
     }
   ]
 }
