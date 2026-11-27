@@ -1,10 +1,10 @@
 {
   "122106699969553881_1184089983973513": {
     "status": "failed",
-    "error": "HTTP 500: {\"error\":{\"message\":\"An unknown error has occurred.\",\"type\":\"OAuthException\",\"code\":1,\"fbtrace_id\":\"AVrpQYvLmfMJyAxvkPKgPij\"}}",
-    "attempts": 9,
+    "error": "HTTP 500: {\"error\":{\"message\":\"An unknown error has occurred.\",\"type\":\"OAuthException\",\"code\":1,\"fbtrace_id\":\"AGkzS87TU9XYWyABPoF6T-i\"}}",
+    "attempts": 10,
     "video": "video-20261125-2046.mp4",
     "platform": "facebook",
-    "at": "2026-11-27T05:10:51+00:00"
+    "at": "2026-11-27T11:27:52+00:00"
   }
 }
