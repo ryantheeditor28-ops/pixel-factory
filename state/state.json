@@ -54,7 +54,11 @@
     "lsernau/grh-lean",
     "Reukix/Reloc",
     "Basil0879/steam-game-idler",
-    "nexu-io/opengame"
+    "nexu-io/opengame",
+    "listicle:Pixel679-cmyk/windows-titlebar-blur-customizer+zortos293/XSEmu+alesha-pro/llm.asm",
+    "Pixel679-cmyk/windows-titlebar-blur-customizer",
+    "zortos293/XSEmu",
+    "alesha-pro/llm.asm"
   ],
   "videos": [
     {
@@ -237,6 +241,13 @@
       "source": "llm",
       "format": "single",
       "title": "AI Game Studio"
+    },
+    {
+      "stamp": "20261127-1412",
+      "topic": "listicle:Pixel679-cmyk/windows-titlebar-blur-customizer+zortos293/XSEmu+alesha-pro/llm.asm",
+      "source": "llm",
+      "format": "listicle",
+      "title": "Three Free GitHub Tools"
     }
   ]
 }
