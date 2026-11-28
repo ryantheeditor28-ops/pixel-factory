@@ -59,7 +59,11 @@
     "Pixel679-cmyk/windows-titlebar-blur-customizer",
     "zortos293/XSEmu",
     "alesha-pro/llm.asm",
-    "ZigZagBoi1/ScarlettPort"
+    "ZigZagBoi1/ScarlettPort",
+    "listicle:Red2076-arch/waifu2x-image-upscaler-windows+DeadInternetStudios/100x-engineer-skill+riveran0226/windows-explorer-blur-mica",
+    "Red2076-arch/waifu2x-image-upscaler-windows",
+    "DeadInternetStudios/100x-engineer-skill",
+    "riveran0226/windows-explorer-blur-mica"
   ],
   "videos": [
     {
@@ -256,6 +260,13 @@
       "source": "llm",
       "format": "single",
       "title": "Xbox Game, Native PC"
+    },
+    {
+      "stamp": "20261128-0404",
+      "topic": "listicle:Red2076-arch/waifu2x-image-upscaler-windows+DeadInternetStudios/100x-engineer-skill+riveran0226/windows-explorer-blur-mica",
+      "source": "llm",
+      "format": "listicle",
+      "title": "3 FREE GITHUB TOOLS"
     }
   ]
 }
